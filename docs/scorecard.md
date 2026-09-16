@@ -30,7 +30,7 @@ came from. Scored September 2026 at commit `00de7df`.
 | 4 | Time in stage | ○ | stage changes are not timestamped |
 | 5 | Assign vendor with rate + skills | ● | `Vendor.rateUsd`, `skills`, `src/routes/vendors.tsx` |
 | 5 | Gate work on payment | ● | `invoiceStatus: "unpaid_setup"` gate |
-| 5 | Effort spent vs quoted | ○ | **no effort model exists** (see below) |
+| 5 | Effort spent vs quoted | ● | `TimeEntry` + `clientEffort()`, Effort desk at `/effort` |
 | 5 | QA per cycle | ● | `QaReview`, `src/routes/qa.tsx` |
 | 5 | Client status without exposing vendor | ● | `src/routes/portal.tsx` |
 | 6 | Invoice records | ○ | one enum on `Client`, no amounts or dates |
@@ -42,34 +42,39 @@ came from. Scored September 2026 at commit `00de7df`.
 | 7 | Renewal / price-review dates | ○ | `startDate` only; no renewal field |
 | 8 | GP and margin per client | ● | `clientPnl` in `money.ts`, `src/routes/profit.tsx` |
 | 8 | Margin drift over time | ○ | every figure is a snapshot |
-| 8 | Alert when actuals breach the floor | ○ | depends on effort tracking, which is missing |
+| 8 | Alert when actuals breach the floor | ● | overrun flagged on Effort and Profit; margin-at-quote vs margin-actual |
 | 8 | Export everything | ● | `exportWorkspace` / `importWorkspace`, versioned file, round trip covered by `npm run smoke` |
 
-**22 built, 4 partial, 12 missing** (was 19/5/14 — items 1, 2 and 3 of the build
-order below have since shipped). Strong through pricing and winning; still thin
-from delivery onward.
+**24 built, 4 partial, 10 missing** (was 19/5/14). Items 1–4 of the build order
+below have shipped. Cash is the last big one.
 
 ## The five that cost real money
 
-### 1. Vendor cost is a guess, and the guess is hardcoded
+### 1. Vendor cost is a guess, and the guess is hardcoded — **fixed**
 
-```ts
-// src/lib/store.ts
-export function vendorMonthly(v: Vendor | undefined) {
-  if (!v) return 0;
-  return v.rateType === "monthly" ? v.rateUsd : v.rateUsd * 80;
-}
-```
+`vendorMonthly()` billed every hourly vendor at **exactly 80 hours, every month,
+forever**, and nothing recorded what was actually worked. `clientPnl` therefore
+reported the margin you assumed at signing, restated monthly with total
+confidence.
 
-An hourly vendor is billed at **exactly 80 hours, every month, forever.** Nothing
-in the app records what was actually worked. So `clientPnl` does not report
-margin — it reports the margin you assumed when you signed, restated monthly with
-total confidence.
+Now `TimeEntry` records hours against a client and vendor, `Client.quotedHoursPerMonth`
+records what the price assumed, and `clientVendorCost()` costs the month on hours
+actually logged. The Effort desk (`/effort`) shows quoted vs logged, burn
+percentage, and **margin at quote against margin actual** side by side.
 
-The failure mode is precisely the one that kills BPO desks: a client's scope
-creeps, the vendor works 110 hours, and every screen in Apexline still shows 60%
-margin right up to the moment the vendor invoices. Productive, Scoro, Accelo and
-Time Doctor all exist because of this exact problem.
+Two shapes of overrun, and the desk distinguishes them:
+
+- **Monthly vendor** — Helios, 369h against a 360h quote. Cost unchanged, so
+  margin holds at 62%; the flag is a renewal and quality risk, not a bill.
+- **Hourly vendor** — Oak & Pine, 112h against a 100h quote at $14/h. Margin
+  drops **58% → 54%**, $168 of gross profit gone this month.
+
+A client with nothing logged reads "—", not a number: an unmeasured margin is an
+assumption and should not be dressed as a measurement.
+
+While wiring this up, the overrun test originally carried a 5% tolerance band. It
+hid Helios entirely — 369 against 360 is over, and a desk built to show leakage
+should not have a band that conceals it. Removed.
 
 ### 2. Platform fees are invisible — **fixed**
 
@@ -113,14 +118,10 @@ Ranked by margin protected per hour of build:
 1. ~~**Export / import**~~ — **done.**
 2. ~~**FX rate editable and dated**~~ — **done.**
 3. ~~**Fee drag in `priceFromCost`**~~ — **done.**
-4. **Effort tracking and actual-vs-quoted margin** — the flagship, and the
-   largest remaining gap. Turns every margin figure from a promise into a
-   measurement, and makes the floor-margin alert real. Needs a `TimeEntry`
-   entity, a quoted-effort field on `Offer`/`Client`, and `vendorMonthly` to
-   stop multiplying hourly rates by a hardcoded 80.
-5. **Invoices and cash** — closes the loop from profit to money. Needs an
-   `Invoice` entity with amount and dates, then DSO and cash-collected derive
-   from it.
+4. ~~**Effort tracking and actual-vs-quoted margin**~~ — **done.**
+5. **Invoices and cash** — the last big one. Closes the loop from profit to
+   money. Needs an `Invoice` entity with amount and dates, then DSO and
+   cash-collected derive from it.
 
 Then the analytics layer (win rate, velocity, churn, LTV, margin drift), which is
 mostly derivation once 4 and 5 exist.

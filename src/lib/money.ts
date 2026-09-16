@@ -9,6 +9,14 @@ import { SLA_MULTIPLIER } from "./types";
 export const FX_ZAR_SEED = 18.2;
 
 /**
+ * Fallback only, for a client priced before anyone recorded the hours it
+ * assumes. Previously this number was buried inside vendorMonthly() as a bare
+ * `* 80`, which made every hourly vendor cost exactly the same every month
+ * regardless of what they worked.
+ */
+export const HOURS_PER_MONTH_FALLBACK = 80;
+
+/**
  * Sourcing a vendor through a marketplace costs more than the vendor's rate.
  * Percentages are the buyer-side fee charged on payments to the vendor, as
  * published September 2026 — confirm before relying on them commercially.
@@ -155,4 +163,44 @@ export function scoreLead(input: {
   if (input.industryMatch) s += 10;
   if (input.painPoints.length >= 2) s += 8;
   return Math.min(99, s);
+}
+
+export interface EffortSummary {
+  quotedHours: number;
+  loggedHours: number;
+  /** Positive means more hours went in than the price assumed. */
+  overrunHours: number;
+  overrunPct: number;
+  /** Past the hours the price assumed. No tolerance band — over is over. */
+  overrun: boolean;
+  /** Nothing logged yet — the figures are an assumption, not a measurement. */
+  unmeasured: boolean;
+}
+
+export function effortSummary(quotedHours: number, loggedHours: number): EffortSummary {
+  const quoted = quotedHours > 0 ? quotedHours : HOURS_PER_MONTH_FALLBACK;
+  const overrunHours = round1(loggedHours - quoted);
+  return {
+    quotedHours: quoted,
+    loggedHours: round1(loggedHours),
+    overrunHours,
+    overrunPct: round1((overrunHours / quoted) * 100),
+    overrun: loggedHours > quoted,
+    unmeasured: loggedHours <= 0,
+  };
+}
+
+/**
+ * What the vendor costs for a month. An hourly vendor is billed on hours
+ * actually worked; a monthly vendor costs the retainer whatever the hours,
+ * which is exactly why overrun on a monthly vendor is a quality and renewal
+ * risk rather than an immediate cost.
+ */
+export function vendorCostForMonth(
+  vendor: { rateUsd: number; rateType: "hourly" | "monthly" } | undefined,
+  hours: number,
+) {
+  if (!vendor) return 0;
+  if (vendor.rateType === "monthly") return vendor.rateUsd;
+  return round2(vendor.rateUsd * Math.max(0, hours));
 }

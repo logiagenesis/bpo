@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Field, Input, Select } from "@/components/ui/field";
 import { channelFee, clientPnl, SOURCING_CHANNELS, usd, zar } from "@/lib/money";
 import type { SourcingChannel } from "@/lib/money";
-import { kpis, todayIso, useApex, vendorMonthly } from "@/lib/store";
+import { clientEffort, clientVendorCost, kpis, todayIso, useApex } from "@/lib/store";
 
 export const Route = createFileRoute("/profit")({ component: ProfitPage });
 
@@ -18,7 +18,7 @@ function ProfitPage() {
   const [notice, setNotice] = useState<{ tone: "gain" | "loss"; text: string } | null>(null);
   const rows = s.clients.map((c) => {
     const v = s.vendors.find((x) => x.id === c.vendorId);
-    return { c, v, pnl: clientPnl(c, vendorMonthly(v), s.fees) };
+    return { c, v, pnl: clientPnl(c, clientVendorCost(s, c), s.fees), effort: clientEffort(s, c.id) };
   });
 
   return (
@@ -144,7 +144,7 @@ function ProfitPage() {
             </tr>
           </thead>
           <tbody>
-            {rows.map(({ c, v, pnl }) => (
+            {rows.map(({ c, v, pnl, effort }) => (
               <tr key={c.id} className="border-t border-line">
                 <td className="px-4 py-3">
                   <Link to="/clients/$clientId" params={{ clientId: c.id }} className="hover:text-accent">
@@ -165,6 +165,8 @@ function ProfitPage() {
                     {c.status === "at_risk" ? <Badge tone="warn">at risk</Badge> : null}
                     {c.csat > 0 && c.csat < 4 ? <Badge tone="warn">CSAT</Badge> : null}
                     {pnl.margin < 40 ? <Badge tone="loss">thin</Badge> : null}
+                    {effort.overrun ? <Badge tone="loss">+{effort.overrunHours}h</Badge> : null}
+                    {effort.unmeasured ? <Badge tone="warn">no hours</Badge> : null}
                     {(v?.performance ?? 100) < 80 ? <Badge tone="warn">vendor</Badge> : null}
                   </div>
                 </td>

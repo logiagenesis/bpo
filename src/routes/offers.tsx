@@ -211,6 +211,7 @@ function blankOffer(fees: FeeProfile): Offer {
     deliverables: "",
     workload: "",
     vendorCostUsd: vendor,
+    quotedHoursPerMonth: 160,
     desiredMarginPct: margin,
     sla: "standard",
     timeline: "Live in 10 working days",

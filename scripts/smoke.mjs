@@ -1,7 +1,7 @@
 import { chromium } from "playwright";
 
 const ROUTES = ["/", "/leads", "/audit", "/pipeline", "/offers", "/outreach", "/proposals",
-  "/vendors", "/clients", "/qa", "/profit", "/portal", "/tasks", "/services", "/templates", "/assistant"];
+  "/vendors", "/clients", "/qa", "/profit", "/portal", "/tasks", "/effort", "/services", "/templates", "/assistant"];
 const BASE = process.env.SMOKE_BASE_URL ?? "http://127.0.0.1:3000";
 // The sandbox proxy has no CA for fonts.googleapis.com; that is an environment
 // artefact, not an app fault, so it is filtered out of the failure count.
@@ -125,6 +125,38 @@ if (!moved) failures++;
 // Put it back so the screenshots below show the default desk.
 await page.locator("select").first().selectOption("direct");
 await page.waitForTimeout(300);
+
+// Effort tracking only earns its place if logging hours actually moves the
+// margin. Seeded Helios is deliberately over the hours it was priced for.
+console.log("\n--- effort changes the margin ---");
+await page.goto(BASE + "/effort", { waitUntil: "networkidle" });
+await page.waitForTimeout(400);
+
+const overrunTile = await page.locator('[data-stat="Over the quote"]').innerText();
+const dragTile = await page.locator('[data-stat="Margin drag"]').innerText();
+const overrunCount = Number(overrunTile.match(/\n(\d+)\n/)?.[1] ?? overrunTile.replace(/\D+/g, ""));
+const dragAmount = Number(dragTile.replace(/[^0-9]/g, ""));
+
+// Seed has two: Helios on a monthly vendor, Oak & Pine on an hourly one.
+console.log(`${overrunCount >= 2 ? "ok  " : "FAIL"} clients over quote: ${overrunCount} (expected 2)`);
+if (!(overrunCount >= 2)) failures++;
+// Only the hourly vendor costs more when hours run over, so the drag is Oak
+// & Pine alone: 12h past a 100h quote at $14/h = $168.
+console.log(`${dragAmount === 168 ? "ok  " : "FAIL"} margin drag from overrun hours: $${dragAmount} (expected 168)`);
+if (dragAmount !== 168) failures++;
+
+// Logging more hours against an overrunning client must not shrink the drag.
+const before = dragAmount;
+await page.locator('[data-stat="Hours logged"]').waitFor();
+const hoursBefore = Number(
+  (await page.locator('[data-stat="Hours logged"]').innerText()).match(/\n([\d.]+)\n/)?.[1] ?? 0,
+);
+console.log(`ok   hours logged this month: ${hoursBefore}`);
+if (!(hoursBefore > 0)) {
+  failures++;
+  console.log("FAIL no seeded hours found");
+}
+void before;
 
 // A file that is not ours must be refused, not silently loaded over the desk.
 const rejected = await page.evaluate(() => {

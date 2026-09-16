@@ -14,6 +14,7 @@ import type {
   Proposal,
   QaReview,
   Task,
+  TimeEntry,
   Vendor,
 } from "./types";
 import { PIPELINE_STAGES } from "./types";
@@ -30,10 +31,22 @@ import {
   SEED_REPORTS,
   SEED_REQUESTS,
   SEED_TASKS,
+  SEED_TIME,
   SEED_VENDORS,
 } from "./seed";
 import { uid } from "./utils";
-import { clientPnl, FX_ZAR_SEED, landedVendorCost, NO_FEES, round2, scoreLead } from "./money";
+import {
+  clientPnl,
+  effortSummary,
+  FX_ZAR_SEED,
+  HOURS_PER_MONTH_FALLBACK,
+  landedVendorCost,
+  NO_FEES,
+  round1,
+  round2,
+  scoreLead,
+  vendorCostForMonth,
+} from "./money";
 import type { FeeProfile } from "./money";
 
 /**
@@ -60,6 +73,7 @@ export function persisted(s: ApexState) {
     reports: s.reports,
     outreach: s.outreach,
     audits: s.audits,
+    timeEntries: s.timeEntries,
     portalClientId: s.portalClientId,
   };
 }
@@ -105,6 +119,7 @@ export interface ApexState {
   reports: ClientReport[];
   outreach: OutreachDraft[];
   audits: AuditResult[];
+  timeEntries: TimeEntry[];
   portalClientId: string;
 
   setHydrated: (v: boolean) => void;
@@ -133,6 +148,8 @@ export interface ApexState {
   setPortalClient: (id: string) => void;
   setFx: (rate: number) => void;
   setFees: (fees: FeeProfile) => void;
+  logTime: (entry: TimeEntry) => void;
+  deleteTimeEntry: (id: string) => void;
   exportWorkspace: () => string;
   importWorkspace: (json: string) => { ok: true } | { ok: false; error: string };
 }
@@ -161,6 +178,8 @@ function demo(): Omit<
   | "resolveRequest"
   | "addReport"
   | "setPortalClient"
+  | "logTime"
+  | "deleteTimeEntry"
   | "setFx"
   | "setFees"
   | "exportWorkspace"
@@ -184,6 +203,7 @@ function demo(): Omit<
     reports: SEED_REPORTS,
     outreach: SEED_OUTREACH,
     audits: SEED_AUDITS,
+    timeEntries: SEED_TIME,
     portalClientId: "cli-01",
   };
 }
@@ -246,6 +266,9 @@ export const useApex = create<ApexState>()(
               contactName: lead.contactName,
               email: lead.email,
               offerId: offer?.id ?? "",
+              // Inherit the hours the offer was priced for, so the new client
+              // has something real to measure logged effort against.
+              quotedHoursPerMonth: offer?.quotedHoursPerMonth ?? HOURS_PER_MONTH_FALLBACK,
               monthlyFeeUsd: deal.valueUsd,
               vendorId: vendor?.id ?? "",
               sla: "standard",
@@ -316,6 +339,14 @@ export const useApex = create<ApexState>()(
         set({ requests: get().requests.map((r) => (r.id === id ? { ...r, status: "done" } : r)) }),
       addReport: (r) => set({ reports: [r, ...get().reports] }),
       setPortalClient: (id) => set({ portalClientId: id }),
+      logTime: (entry) =>
+        set({
+          timeEntries: [
+            { ...entry, hours: Math.max(0, round1(entry.hours)) },
+            ...get().timeEntries.filter((t) => t.id !== entry.id),
+          ],
+        }),
+      deleteTimeEntry: (id) => set({ timeEntries: get().timeEntries.filter((t) => t.id !== id) }),
       setFx: (rate) => {
         if (!Number.isFinite(rate) || rate <= 0) return;
         set({ fxZar: round2(rate), fxSetAt: todayIso() });
@@ -389,9 +420,37 @@ function stageProb(stage: PipelineStage) {
   return Math.round((i / (PIPELINE_STAGES.length - 2)) * 80);
 }
 
-export function vendorMonthly(v: Vendor | undefined) {
-  if (!v) return 0;
-  return v.rateType === "monthly" ? v.rateUsd : v.rateUsd * 80;
+/** Current calendar month, yyyy-mm, in UTC so the server and browser agree. */
+export function currentMonth() {
+  return todayIso().slice(0, 7);
+}
+
+/**
+ * Hours logged against a client this month, measured against the hours its
+ * price assumed. This is the difference between margin you assumed and margin
+ * you earned.
+ */
+export function clientEffort(s: ApexState, clientId: string, month = currentMonth()) {
+  const client = s.clients.find((c) => c.id === clientId);
+  const logged = s.timeEntries
+    .filter((t) => t.clientId === clientId && t.date.startsWith(month))
+    .reduce((a, t) => a + t.hours, 0);
+  return effortSummary(client?.quotedHoursPerMonth ?? HOURS_PER_MONTH_FALLBACK, logged);
+}
+
+/**
+ * What this client's vendor costs this month. Hourly vendors are costed on the
+ * hours actually logged; with nothing logged we fall back to the quote and the
+ * figure is flagged unmeasured rather than presented as fact.
+ */
+export function clientVendorCost(s: ApexState, c: Client, month = currentMonth()) {
+  const vendor = s.vendors.find((v) => v.id === c.vendorId);
+  const effort = clientEffort(s, c.id, month);
+  return vendorCostForMonth(vendor, effort.unmeasured ? effort.quotedHours : effort.loggedHours);
+}
+
+export function vendorMonthly(v: Vendor | undefined, hours = HOURS_PER_MONTH_FALLBACK) {
+  return vendorCostForMonth(v, hours);
 }
 
 export function todayIso() {
@@ -403,10 +462,10 @@ export function kpis(s: ApexState) {
   const mrr = active.reduce((a, c) => a + c.monthlyFeeUsd, 0);
   // Fees are part of the cost base, not a footnote: marketplace fees raise what
   // the vendor costs, payment fees come out of what the client pays.
-  const vendor = active.reduce((a, c) => {
-    const v = s.vendors.find((x) => x.id === c.vendorId);
-    return a + landedVendorCost(vendorMonthly(v), s.fees.vendorFeePct);
-  }, 0);
+  const vendor = active.reduce(
+    (a, c) => a + landedVendorCost(clientVendorCost(s, c), s.fees.vendorFeePct),
+    0,
+  );
   const paymentFees = active.reduce(
     (a, c) => a + c.monthlyFeeUsd * (s.fees.paymentFeePct / 100),
     0,
@@ -420,13 +479,17 @@ export function kpis(s: ApexState) {
   const hot = [...s.leads].filter((l) => l.status !== "won" && l.status !== "lost").sort((a, b) => b.score - a.score);
   const atRisk = s.clients.filter((c) => c.status === "at_risk" || c.invoiceStatus !== "current" || c.csat < 4);
   const thin = active
-    .map((c) => ({
-      c,
-      pnl: clientPnl(c, vendorMonthly(s.vendors.find((v) => v.id === c.vendorId)), s.fees),
-    }))
+    .map((c) => ({ c, pnl: clientPnl(c, clientVendorCost(s, c), s.fees) }))
     .filter((x) => x.pnl.margin < 40);
+  // Clients being worked past the hours they were priced for. On an hourly
+  // vendor this is margin leaking now; on a monthly vendor it is the renewal
+  // and quality risk that shows up later.
+  const overrunning = active
+    .map((c) => ({ c, effort: clientEffort(s, c.id) }))
+    .filter((x) => x.effort.overrun);
   return {
-    active, mrr, vendor, tools, paymentFees, gp, margin, openDeals, pipeline, dueToday, hot, atRisk, thin,
+    active, mrr, vendor, tools, paymentFees, gp, margin, openDeals, pipeline, dueToday, hot, atRisk,
+    thin, overrunning,
   };
 }
 
