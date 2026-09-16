@@ -41,12 +41,19 @@ export function usdExact(n: number) {
   }).format(n);
 }
 
+/**
+ * Formatted by hand, not by Intl. Node's ICU groups "en-ZA" with a non-breaking
+ * space while Chrome groups it with a comma, so an Intl-formatted rand amount
+ * renders differently on the server and in the browser and breaks hydration.
+ * SA convention is a space separator, so we emit that on both sides.
+ */
 export function zar(nUsd: number, fx = FX_ZAR) {
-  return new Intl.NumberFormat("en-ZA", {
-    style: "currency",
-    currency: "ZAR",
-    maximumFractionDigits: 0,
-  }).format(nUsd * fx);
+  const rands = Math.round(nUsd * fx);
+  const sign = rands < 0 ? "-" : "";
+  const grouped = Math.abs(rands)
+    .toString()
+    .replace(/\B(?=(\d{3})+(?!\d))/g, "\u00a0");
+  return `${sign}R\u00a0${grouped}`;
 }
 
 export function marginTone(pct: number): "gain" | "warn" | "loss" {

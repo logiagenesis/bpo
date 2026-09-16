@@ -256,6 +256,12 @@ export const useApex = create<ApexState>()(
     }),
     {
       name: "apexline-os-v1",
+      // The server renders the seeded workspace; the browser holds the
+      // operator's real data. Rehydrating during module load would make the
+      // first client render disagree with the server HTML, so we wait for
+      // `useStoreHydration` to call rehydrate() after React has hydrated.
+      skipHydration: true,
+      onRehydrateStorage: () => (state) => state?.setHydrated(true),
       partialize: (s) => ({
         fxZar: s.fxZar,
         workspace: s.workspace,

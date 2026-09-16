@@ -22,6 +22,7 @@ import {
 import { ApexMark } from "./mark";
 import { cn } from "@/lib/utils";
 import { kpis, useApex } from "@/lib/store";
+import { useStoreHydration } from "@/lib/use-store-hydration";
 import { usd } from "@/lib/money";
 
 const NAV = [
@@ -98,6 +99,7 @@ function NavBody({ onGo }: { onGo?: () => void }) {
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  useStoreHydration();
   const [open, setOpen] = useState(false);
   const s = useApex();
   const { mrr, margin, dueToday } = kpis(s);
