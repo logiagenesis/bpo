@@ -12,9 +12,12 @@ export function Stat({
   tone?: "gain" | "loss" | "warn" | "default";
 }) {
   return (
-    <div className="rounded-xl bg-surface p-4 hair">
+    // data-stat gives tests a stable handle: the label is uppercased by CSS,
+    // so its DOM text does not match what is on screen.
+    <div className="rounded-xl bg-surface p-4 hair" data-stat={label}>
       <p className="text-xs uppercase tracking-[0.16em] text-muted">{label}</p>
       <p
+        data-stat-value={label}
         className={cn(
           "mt-2 font-display text-2xl tabular tracking-tight sm:text-3xl",
           tone === "gain" && "text-gain",

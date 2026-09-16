@@ -1,6 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
+  Banknote,
   BookOpen,
   Briefcase,
   Building2,
@@ -15,6 +16,7 @@ import {
   Send,
   Shield,
   Sparkles,
+  Timer,
   Users,
   Wallet,
   X,
@@ -22,6 +24,7 @@ import {
 import { ApexMark } from "./mark";
 import { cn } from "@/lib/utils";
 import { kpis, useApex } from "@/lib/store";
+import { useStoreHydration } from "@/lib/use-store-hydration";
 import { usd } from "@/lib/money";
 
 const NAV = [
@@ -30,6 +33,7 @@ const NAV = [
     items: [
       { to: "/", label: "Command", icon: LayoutDashboard },
       { to: "/profit", label: "Profit", icon: Wallet },
+      { to: "/cash", label: "Cash", icon: Banknote },
       { to: "/offers", label: "Offers", icon: Briefcase },
     ],
   },
@@ -49,6 +53,7 @@ const NAV = [
       { to: "/clients", label: "Clients", icon: Building2 },
       { to: "/vendors", label: "Vendors", icon: Shield },
       { to: "/tasks", label: "Tasks", icon: ListChecks },
+      { to: "/effort", label: "Effort", icon: Timer },
       { to: "/qa", label: "QA", icon: ClipboardCheck },
       { to: "/portal", label: "Client portal", icon: Compass },
     ],
@@ -98,6 +103,7 @@ function NavBody({ onGo }: { onGo?: () => void }) {
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  useStoreHydration();
   const [open, setOpen] = useState(false);
   const s = useApex();
   const { mrr, margin, dueToday } = kpis(s);

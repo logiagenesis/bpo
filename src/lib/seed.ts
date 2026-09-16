@@ -10,7 +10,9 @@ import type {
   OutreachDraft,
   Proposal,
   QaReview,
+  Invoice,
   Task,
+  TimeEntry,
   Vendor,
 } from "./types";
 
@@ -328,6 +330,7 @@ export const SEED_OFFERS: Offer[] = [
     industry: "Healthcare / home services",
     deliverables: "30 qualified appointments / month, calendar on their CRM, Friday report, no-show chase.",
     workload: "2 setters, ~80 hours",
+    quotedHoursPerMonth: 160,
     vendorCostUsd: 1600,
     desiredMarginPct: 55,
     sla: "priority",
@@ -345,6 +348,7 @@ export const SEED_OFFERS: Offer[] = [
     industry: "Logistics / DTC",
     deliverables: "12-hour coverage, first response < 15 min, macros, daily CSAT sample.",
     workload: "3 agents overlapping US hours",
+    quotedHoursPerMonth: 360,
     vendorCostUsd: 2400,
     desiredMarginPct: 58,
     sla: "priority",
@@ -362,6 +366,7 @@ export const SEED_OFFERS: Offer[] = [
     industry: "Wholesale / B2B",
     deliverables: "40 verified buyers / month, first-touch drafts (you send), bounce < 4%.",
     workload: "1 researcher + copy desk",
+    quotedHoursPerMonth: 100,
     vendorCostUsd: 1400,
     desiredMarginPct: 52,
     sla: "standard",
@@ -379,6 +384,7 @@ export const SEED_OFFERS: Offer[] = [
     industry: "Legal / professional",
     deliverables: "Diary, bundling, billing pack prep, 24h turnaround on named tasks.",
     workload: "1 senior VA + backup",
+    quotedHoursPerMonth: 90,
     vendorCostUsd: 1200,
     desiredMarginPct: 50,
     sla: "white_glove",
@@ -394,7 +400,7 @@ export const SEED_OFFERS: Offer[] = [
 export const SEED_VENDORS: Vendor[] = [
   { id: "ven-01", name: "Lina Cruz", email: "lina@vendors.example", country: "Philippines", timezone: "PHT", skills: ["Appointment setting", "CRM", "Healthcare"], rateUsd: 1600, rateType: "monthly", availability: "booked", rating: 4.8, testTask: "92 — clinic recall", notes: "Best closer voice. Backup: ven-06.", nda: true, performance: 91, assignedClientIds: ["cli-01"] },
   { id: "ven-02", name: "Arjun Mehta", email: "arjun@vendors.example", country: "India", timezone: "IST", skills: ["CX", "Zendesk", "Logistics"], rateUsd: 2400, rateType: "monthly", availability: "booked", rating: 4.6, testTask: "88 — ticket sample", notes: "Needs product glossary in week 0.", nda: true, performance: 84, assignedClientIds: ["cli-02"] },
-  { id: "ven-03", name: "Nadia Rahman", email: "nadia@vendors.example", country: "Bangladesh", timezone: "BST", skills: ["Lead research", "LinkedIn", "Lists"], rateUsd: 1400, rateType: "monthly", availability: "booked", rating: 4.7, testTask: "90 — 20-row list", notes: "Does not send. Drafts only.", nda: true, performance: 89, assignedClientIds: ["cli-03"] },
+  { id: "ven-03", name: "Nadia Rahman", email: "nadia@vendors.example", country: "Bangladesh", timezone: "BST", skills: ["Lead research", "LinkedIn", "Lists"], rateUsd: 14, rateType: "hourly", availability: "booked", rating: 4.7, testTask: "90 — 20-row list", notes: "Does not send. Drafts only.", nda: true, performance: 89, assignedClientIds: ["cli-03"] },
   { id: "ven-04", name: "Sipho Dlamini", email: "sipho@vendors.example", country: "South Africa", timezone: "SAST", skills: ["Legal admin", "Docs", "Diaries"], rateUsd: 1200, rateType: "monthly", availability: "booked", rating: 4.9, testTask: "95 — bundle", notes: "Overlap with UK mornings. Preferred for confidential work.", nda: true, performance: 94, assignedClientIds: ["cli-04"] },
   { id: "ven-05", name: "Mei Tan", email: "mei@vendors.example", country: "Malaysia", timezone: "MYT", skills: ["Chat", "DTC", "Returns"], rateUsd: 1700, rateType: "monthly", availability: "available", rating: 4.5, testTask: "86 — Intercom macros", notes: "Peak-season backup.", nda: true, performance: 82, assignedClientIds: [] },
   { id: "ven-06", name: "Carla Reyes", email: "carla@vendors.example", country: "Philippines", timezone: "PHT", skills: ["Appointment setting", "Home services"], rateUsd: 1500, rateType: "monthly", availability: "limited", rating: 4.4, testTask: "81 — HVAC estimates", notes: "Backup for Lina. Half-time available.", nda: true, performance: 80, assignedClientIds: [] },
@@ -402,10 +408,10 @@ export const SEED_VENDORS: Vendor[] = [
 ];
 
 export const SEED_CLIENTS: Client[] = [
-  { id: "cli-01", company: "Northbridge Dental Group", country: "United Kingdom", industry: "Healthcare", contactName: "Rachel Cole", email: "rachel.cole@northbridge.example", offerId: "off-01", monthlyFeeUsd: 4200, vendorId: "ven-01", sla: "priority", startDate: "2026-06-20", status: "active", csat: 4.7, notes: "Expanding to a sixth clinic in Q4.", toolCostUsd: 80, otherCostUsd: 0, invoiceStatus: "current" },
-  { id: "cli-02", company: "Helios Freight", country: "United States", industry: "Logistics", contactName: "Marcus Hale", email: "mhale@heliosfreight.example", offerId: "off-02", monthlyFeeUsd: 6800, vendorId: "ven-02", sla: "priority", startDate: "2026-05-20", status: "at_risk", csat: 3.9, notes: "CSAT dip after a product change. Coaching this week. Weekend cover added.", toolCostUsd: 120, otherCostUsd: 40, invoiceStatus: "current" },
-  { id: "cli-03", company: "Oak & Pine Interiors", country: "Australia", industry: "Retail", contactName: "Elena Park", email: "elena@oakandpine.example", offerId: "off-03", monthlyFeeUsd: 3500, vendorId: "ven-03", sla: "standard", startDate: "2026-07-12", status: "active", csat: 4.8, notes: "Wants appointment setting next.", toolCostUsd: 60, otherCostUsd: 0, invoiceStatus: "current" },
-  { id: "cli-04", company: "Meridian Chambers", country: "United Kingdom", industry: "Legal", contactName: "James Whitaker", email: "j.whitaker@meridianchambers.example", offerId: "off-04", monthlyFeeUsd: 2900, vendorId: "ven-04", sla: "white_glove", startDate: "2026-05-02", status: "active", csat: 4.9, notes: "Do not add vendors to the client thread.", toolCostUsd: 40, otherCostUsd: 0, invoiceStatus: "overdue" },
+  { id: "cli-01", company: "Northbridge Dental Group", country: "United Kingdom", industry: "Healthcare", contactName: "Rachel Cole", email: "rachel.cole@northbridge.example", offerId: "off-01", monthlyFeeUsd: 4200, vendorId: "ven-01", sla: "priority", startDate: "2026-06-20", status: "active", csat: 4.7, notes: "Expanding to a sixth clinic in Q4.", toolCostUsd: 80, otherCostUsd: 0, quotedHoursPerMonth: 160, invoiceStatus: "current" },
+  { id: "cli-02", company: "Helios Freight", country: "United States", industry: "Logistics", contactName: "Marcus Hale", email: "mhale@heliosfreight.example", offerId: "off-02", monthlyFeeUsd: 6800, vendorId: "ven-02", sla: "priority", startDate: "2026-05-20", status: "at_risk", csat: 3.9, notes: "CSAT dip after a product change. Coaching this week. Weekend cover added.", toolCostUsd: 120, otherCostUsd: 40, quotedHoursPerMonth: 360, invoiceStatus: "current" },
+  { id: "cli-03", company: "Oak & Pine Interiors", country: "Australia", industry: "Retail", contactName: "Elena Park", email: "elena@oakandpine.example", offerId: "off-03", monthlyFeeUsd: 3500, vendorId: "ven-03", sla: "standard", startDate: "2026-07-12", status: "active", csat: 4.8, notes: "Wants appointment setting next.", toolCostUsd: 60, otherCostUsd: 0, quotedHoursPerMonth: 100, invoiceStatus: "current" },
+  { id: "cli-04", company: "Meridian Chambers", country: "United Kingdom", industry: "Legal", contactName: "James Whitaker", email: "j.whitaker@meridianchambers.example", offerId: "off-04", monthlyFeeUsd: 2900, vendorId: "ven-04", sla: "white_glove", startDate: "2026-05-02", status: "active", csat: 4.9, notes: "Do not add vendors to the client thread.", toolCostUsd: 40, otherCostUsd: 0, quotedHoursPerMonth: 90, invoiceStatus: "overdue" },
 ];
 
 export const SEED_TASKS: Task[] = [
@@ -530,4 +536,48 @@ export const SEED_AUDITS: AuditResult[] = [
     proposalSummary: "L1 coverage, 12h, macros, 15-min first response, weekly QA.",
     createdAt: "2026-09-08",
   },
+];
+
+/**
+ * September 2026 so far, covering every state the Effort desk has to show:
+ * Northbridge on track; Helios past its hours on a monthly vendor, where the
+ * cost is unchanged but the renewal and quality risk is real; Oak & Pine past
+ * its hours on an hourly vendor, where margin is leaving this month; and
+ * Meridian with nothing logged, the honest "not measured yet" state.
+ */
+export const SEED_TIME: TimeEntry[] = [
+  { id: "te-01", clientId: "cli-01", vendorId: "ven-01", date: "2026-09-01", hours: 38, note: "Week 1 — recall calls, 42 booked." },
+  { id: "te-02", clientId: "cli-01", vendorId: "ven-01", date: "2026-09-08", hours: 40, note: "Week 2 — hygienist gaps cleared." },
+  { id: "te-03", clientId: "cli-01", vendorId: "ven-01", date: "2026-09-15", hours: 40, note: "Week 3 — sixth clinic prep." },
+
+  { id: "te-04", clientId: "cli-02", vendorId: "ven-02", date: "2026-09-01", hours: 96, note: "Week 1 — normal volume." },
+  { id: "te-05", clientId: "cli-02", vendorId: "ven-02", date: "2026-09-08", hours: 132, note: "Week 2 — product change, ticket spike. Weekend cover added." },
+  { id: "te-06", clientId: "cli-02", vendorId: "ven-02", date: "2026-09-15", hours: 141, note: "Week 3 — backlog plus coaching hours. Nobody re-priced this." },
+
+  { id: "te-07", clientId: "cli-03", vendorId: "ven-03", date: "2026-09-02", hours: 26, note: "September list — 40 verified buyers." },
+  { id: "te-08", clientId: "cli-03", vendorId: "ven-03", date: "2026-09-09", hours: 44, note: "Client changed the ICP. List rebuilt from scratch — not re-quoted." },
+  { id: "te-09", clientId: "cli-03", vendorId: "ven-03", date: "2026-09-15", hours: 42, note: "Second rebuild after the ICP moved again. Still on the original price." },
+];
+
+/**
+ * Invoiced since each client started, on 14-day terms. Meridian is the case the
+ * Cash desk exists for: two retainers unpaid, the older one well past due,
+ * while the Profit desk happily reports its 57% margin every month.
+ */
+export const SEED_INVOICES: Invoice[] = [
+  { id: "inv-01", clientId: "cli-01", number: "APX-1001", kind: "setup", amountUsd: 1800, issuedAt: "2026-06-20", dueAt: "2026-07-04", paidAt: "2026-06-24", note: "Setup — onboarding and scripts." },
+  { id: "inv-02", clientId: "cli-01", number: "APX-1006", kind: "retainer", amountUsd: 4200, issuedAt: "2026-07-01", dueAt: "2026-07-15", paidAt: "2026-07-09", note: "July retainer." },
+  { id: "inv-03", clientId: "cli-01", number: "APX-1012", kind: "retainer", amountUsd: 4200, issuedAt: "2026-08-01", dueAt: "2026-08-15", paidAt: "2026-08-12", note: "August retainer." },
+  { id: "inv-04", clientId: "cli-01", number: "APX-1019", kind: "retainer", amountUsd: 4200, issuedAt: "2026-09-01", dueAt: "2026-09-15", paidAt: "2026-09-11", note: "September retainer." },
+
+  { id: "inv-05", clientId: "cli-02", number: "APX-1002", kind: "setup", amountUsd: 2500, issuedAt: "2026-05-20", dueAt: "2026-06-03", paidAt: "2026-05-27", note: "Setup — glossary, macros, rota." },
+  { id: "inv-06", clientId: "cli-02", number: "APX-1013", kind: "retainer", amountUsd: 6800, issuedAt: "2026-08-01", dueAt: "2026-08-15", paidAt: "2026-08-14", note: "August retainer." },
+  { id: "inv-07", clientId: "cli-02", number: "APX-1020", kind: "retainer", amountUsd: 6800, issuedAt: "2026-09-01", dueAt: "2026-09-15", paidAt: null, note: "September retainer. Chase — one day late." },
+
+  { id: "inv-08", clientId: "cli-03", number: "APX-1003", kind: "setup", amountUsd: 1200, issuedAt: "2026-07-12", dueAt: "2026-07-26", paidAt: "2026-07-18", note: "Setup — ICP and list spec." },
+  { id: "inv-09", clientId: "cli-03", number: "APX-1021", kind: "retainer", amountUsd: 3500, issuedAt: "2026-09-01", dueAt: "2026-09-15", paidAt: "2026-09-08", note: "September retainer." },
+
+  { id: "inv-10", clientId: "cli-04", number: "APX-1004", kind: "setup", amountUsd: 1500, issuedAt: "2026-05-02", dueAt: "2026-05-16", paidAt: "2026-05-14", note: "Setup — NDA, bundles template." },
+  { id: "inv-11", clientId: "cli-04", number: "APX-1014", kind: "retainer", amountUsd: 2900, issuedAt: "2026-07-01", dueAt: "2026-07-15", paidAt: null, note: "July retainer. Chased three times. Practice manager says finance is slow." },
+  { id: "inv-12", clientId: "cli-04", number: "APX-1022", kind: "retainer", amountUsd: 2900, issuedAt: "2026-09-01", dueAt: "2026-09-15", paidAt: null, note: "September retainer. Do not start October work until July clears." },
 ];

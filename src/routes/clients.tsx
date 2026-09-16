@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { clientPnl, usd } from "@/lib/money";
-import { useApex, vendorMonthly } from "@/lib/store";
+import { clientVendorCost, useApex } from "@/lib/store";
 
 export const Route = createFileRoute("/clients")({ component: ClientsPage });
 
@@ -28,7 +28,7 @@ function ClientsPage() {
           <tbody>
             {s.clients.map((c) => {
               const v = s.vendors.find((x) => x.id === c.vendorId);
-              const pnl = clientPnl(c, vendorMonthly(v));
+              const pnl = clientPnl(c, clientVendorCost(s, c), s.fees);
               return (
                 <tr key={c.id} className="border-t border-line">
                   <td className="px-4 py-3">

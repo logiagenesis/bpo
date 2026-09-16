@@ -6,7 +6,7 @@ import { Field, Input, Select, Textarea } from "@/components/ui/field";
 import { Badge } from "@/components/ui/badge";
 import { Stat } from "@/components/stat";
 import { clientPnl, usd } from "@/lib/money";
-import { useApex, vendorMonthly } from "@/lib/store";
+import { clientEffort, clientVendorCost, useApex } from "@/lib/store";
 import type { Client } from "@/lib/types";
 
 export const Route = createFileRoute("/clients/$clientId")({ component: ClientDetail });
@@ -25,7 +25,8 @@ function ClientDetail() {
   }
   const vendor = s.vendors.find((v) => v.id === c.vendorId);
   const offer = s.offers.find((o) => o.id === c.offerId);
-  const pnl = clientPnl(c, vendorMonthly(vendor));
+  const pnl = clientPnl(c, clientVendorCost(s, c), s.fees);
+  const effort = clientEffort(s, c.id);
   const tasks = s.tasks.filter((t) => t.clientId === c.id);
   const qa = s.qa.filter((q) => q.clientId === c.id);
   const reports = s.reports.filter((r) => r.clientId === c.id);

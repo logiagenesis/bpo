@@ -6,7 +6,7 @@ import { Field, Select, Textarea, Input } from "@/components/ui/field";
 import { Badge } from "@/components/ui/badge";
 import { Stat } from "@/components/stat";
 import { usd } from "@/lib/money";
-import { todayIso, useApex, vendorMonthly } from "@/lib/store";
+import { clientVendorCost, todayIso, useApex } from "@/lib/store";
 import { clientPnl } from "@/lib/money";
 import { uid } from "@/lib/utils";
 
@@ -19,7 +19,7 @@ function PortalPage() {
   const [body, setBody] = useState("");
   if (!client) return <p className="text-muted">No clients yet.</p>;
   const vendor = s.vendors.find((v) => v.id === client.vendorId);
-  const pnl = clientPnl(client, vendorMonthly(vendor));
+  const pnl = clientPnl(client, clientVendorCost(s, client), s.fees);
   const reports = s.reports.filter((r) => r.clientId === client.id);
   const reqs = s.requests.filter((r) => r.clientId === client.id);
   const tasks = s.tasks.filter((t) => t.clientId === client.id);

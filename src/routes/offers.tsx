@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
 import { Badge } from "@/components/ui/badge";
 import { runOfferCopy } from "@/lib/ai.functions";
-import { marginPct, marginTone, priceFromCost, usd } from "@/lib/money";
+import { landedVendorCost, marginPct, marginTone, priceFromCost, usd } from "@/lib/money";
+import type { FeeProfile } from "@/lib/money";
 import { todayIso, useApex } from "@/lib/store";
 import { SERVICE_LABEL, SERVICES, SLA_LEVELS, type Offer, type ServiceType, type SlaLevel } from "@/lib/types";
 import { uid } from "@/lib/utils";
@@ -17,8 +18,13 @@ function OffersPage() {
   const s = useApex();
   const [id, setId] = useState(s.offers[0]?.id ?? "");
   const existing = s.offers.find((o) => o.id === id);
-  const [draft, setDraft] = useState<Offer>(existing ?? blankOffer());
-  const gp = draft.priceUsd - draft.vendorCostUsd;
+  const [draft, setDraft] = useState<Offer>(existing ?? blankOffer(s.fees));
+  // Margin on what delivery actually costs: the vendor's rate plus the
+  // marketplace fee on it, less the processing fee taken out of the client's
+  // payment. Quoting against the raw rate overstates every margin on this page.
+  const landed = landedVendorCost(draft.vendorCostUsd, s.fees.vendorFeePct);
+  const paymentFee = draft.priceUsd * (s.fees.paymentFeePct / 100);
+  const gp = draft.priceUsd - landed - paymentFee;
   const m = marginPct(draft.priceUsd, gp);
   const tone = marginTone(m);
   const [busy, setBusy] = useState(false);
@@ -31,7 +37,7 @@ function OffersPage() {
   function recalc(next: Partial<Offer>) {
     const merged = { ...draft, ...next };
     if (next.vendorCostUsd != null || next.desiredMarginPct != null || next.sla != null) {
-      merged.priceUsd = Math.round(priceFromCost(merged.vendorCostUsd, merged.desiredMarginPct, merged.sla));
+      merged.priceUsd = Math.round(priceFromCost(merged.vendorCostUsd, merged.desiredMarginPct, merged.sla, s.fees));
     }
     setDraft(merged);
   }
@@ -71,7 +77,7 @@ function OffersPage() {
         title="Offer builder"
         action={
           <>
-            <Button variant="outline" onClick={() => { const o = blankOffer(); setDraft(o); setId(o.id); }}>
+            <Button variant="outline" onClick={() => { const o = blankOffer(s.fees); setDraft(o); setId(o.id); }}>
               New
             </Button>
             <Button
@@ -166,6 +172,8 @@ function OffersPage() {
           <p className="text-sm text-muted">per month</p>
           <dl className="mt-4 space-y-2 text-sm">
             <Row k="Vendor" v={usd(draft.vendorCostUsd)} />
+            {landed !== draft.vendorCostUsd ? <Row k="+ marketplace fee" v={usd(landed - draft.vendorCostUsd)} /> : null}
+            {paymentFee > 0 ? <Row k="− payment fee" v={usd(paymentFee)} /> : null}
             <Row k="Gross profit" v={usd(gp)} />
             <Row k="Margin" v={`${m.toFixed(0)}%`} warn={tone !== "gain"} />
           </dl>
@@ -192,7 +200,7 @@ function Row({ k, v, warn }: { k: string; v: string; warn?: boolean }) {
   );
 }
 
-function blankOffer(): Offer {
+function blankOffer(fees: FeeProfile): Offer {
   const vendor = 1500;
   const margin = 50;
   return {
@@ -203,10 +211,11 @@ function blankOffer(): Offer {
     deliverables: "",
     workload: "",
     vendorCostUsd: vendor,
+    quotedHoursPerMonth: 160,
     desiredMarginPct: margin,
     sla: "standard",
     timeline: "Live in 10 working days",
-    priceUsd: Math.round(priceFromCost(vendor, margin, "standard")),
+    priceUsd: Math.round(priceFromCost(vendor, margin, "standard", fees)),
     upsells: "",
     riskWarnings: "",
     copy: "",

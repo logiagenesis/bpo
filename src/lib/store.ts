@@ -13,7 +13,9 @@ import type {
   PipelineStage,
   Proposal,
   QaReview,
+  Invoice,
   Task,
+  TimeEntry,
   Vendor,
 } from "./types";
 import { PIPELINE_STAGES } from "./types";
@@ -29,15 +31,85 @@ import {
   SEED_QA,
   SEED_REPORTS,
   SEED_REQUESTS,
+  SEED_INVOICES,
   SEED_TASKS,
+  SEED_TIME,
   SEED_VENDORS,
 } from "./seed";
 import { uid } from "./utils";
-import { clientPnl, FX_ZAR, scoreLead } from "./money";
+import {
+  cashSummary,
+  clientPnl,
+  effortSummary,
+  invoiceState,
+  FX_ZAR_SEED,
+  HOURS_PER_MONTH_FALLBACK,
+  landedVendorCost,
+  NO_FEES,
+  round1,
+  round2,
+  scoreLead,
+  vendorCostForMonth,
+} from "./money";
+import type { FeeProfile } from "./money";
+
+/**
+ * The operator's data — everything that is theirs rather than the app's. One
+ * definition serves both localStorage and the export file, so an export can
+ * never quietly drift from what the desk actually saves.
+ */
+export function persisted(s: ApexState) {
+  return {
+    fxZar: s.fxZar,
+    fxSetAt: s.fxSetAt,
+    fees: s.fees,
+    workspace: s.workspace,
+    leads: s.leads,
+    deals: s.deals,
+    offers: s.offers,
+    vendors: s.vendors,
+    clients: s.clients,
+    tasks: s.tasks,
+    qa: s.qa,
+    proposals: s.proposals,
+    activities: s.activities,
+    requests: s.requests,
+    reports: s.reports,
+    outreach: s.outreach,
+    audits: s.audits,
+    timeEntries: s.timeEntries,
+    invoices: s.invoices,
+    portalClientId: s.portalClientId,
+  };
+}
+
+export type PersistedState = ReturnType<typeof persisted>;
+
+export const WORKSPACE_FORMAT = "apexline.workspace";
+export const WORKSPACE_VERSION = 1;
+
+/** Collections an import must carry before we overwrite the operator's desk. */
+const REQUIRED_COLLECTIONS = ["leads", "deals", "offers", "vendors", "clients"] as const;
+
+export interface WorkspaceFile {
+  format: typeof WORKSPACE_FORMAT;
+  version: typeof WORKSPACE_VERSION;
+  exportedAt: string;
+  state: PersistedState;
+}
+
+function clampFeeInput(n: number) {
+  if (!Number.isFinite(n)) return 0;
+  return Math.min(50, Math.max(0, round2(n)));
+}
 
 export interface ApexState {
   hydrated: boolean;
   fxZar: number;
+  /** ISO date the operator last set fxZar. A stale rate should look stale. */
+  fxSetAt: string;
+  /** Marketplace and payment fees this desk actually pays. */
+  fees: FeeProfile;
   workspace: string;
   leads: Lead[];
   deals: Deal[];
@@ -52,6 +124,8 @@ export interface ApexState {
   reports: ClientReport[];
   outreach: OutreachDraft[];
   audits: AuditResult[];
+  timeEntries: TimeEntry[];
+  invoices: Invoice[];
   portalClientId: string;
 
   setHydrated: (v: boolean) => void;
@@ -78,6 +152,15 @@ export interface ApexState {
   resolveRequest: (id: string) => void;
   addReport: (r: ClientReport) => void;
   setPortalClient: (id: string) => void;
+  setFx: (rate: number) => void;
+  setFees: (fees: FeeProfile) => void;
+  upsertInvoice: (invoice: Invoice) => void;
+  markInvoicePaid: (id: string, paidAt: string) => void;
+  deleteInvoice: (id: string) => void;
+  logTime: (entry: TimeEntry) => void;
+  deleteTimeEntry: (id: string) => void;
+  exportWorkspace: () => string;
+  importWorkspace: (json: string) => { ok: true } | { ok: false; error: string };
 }
 
 function demo(): Omit<
@@ -104,9 +187,20 @@ function demo(): Omit<
   | "resolveRequest"
   | "addReport"
   | "setPortalClient"
+  | "upsertInvoice"
+  | "markInvoicePaid"
+  | "deleteInvoice"
+  | "logTime"
+  | "deleteTimeEntry"
+  | "setFx"
+  | "setFees"
+  | "exportWorkspace"
+  | "importWorkspace"
 > {
   return {
-    fxZar: FX_ZAR,
+    fxZar: FX_ZAR_SEED,
+    fxSetAt: todayIso(),
+    fees: NO_FEES,
     workspace: "Apexline",
     leads: SEED_LEADS,
     deals: SEED_DEALS,
@@ -121,6 +215,8 @@ function demo(): Omit<
     reports: SEED_REPORTS,
     outreach: SEED_OUTREACH,
     audits: SEED_AUDITS,
+    timeEntries: SEED_TIME,
+    invoices: SEED_INVOICES,
     portalClientId: "cli-01",
   };
 }
@@ -183,6 +279,9 @@ export const useApex = create<ApexState>()(
               contactName: lead.contactName,
               email: lead.email,
               offerId: offer?.id ?? "",
+              // Inherit the hours the offer was priced for, so the new client
+              // has something real to measure logged effort against.
+              quotedHoursPerMonth: offer?.quotedHoursPerMonth ?? HOURS_PER_MONTH_FALLBACK,
               monthlyFeeUsd: deal.valueUsd,
               vendorId: vendor?.id ?? "",
               sla: "standard",
@@ -253,27 +352,86 @@ export const useApex = create<ApexState>()(
         set({ requests: get().requests.map((r) => (r.id === id ? { ...r, status: "done" } : r)) }),
       addReport: (r) => set({ reports: [r, ...get().reports] }),
       setPortalClient: (id) => set({ portalClientId: id }),
+      upsertInvoice: (invoice) =>
+        set({
+          invoices: [
+            { ...invoice, amountUsd: round2(Math.max(0, invoice.amountUsd)) },
+            ...get().invoices.filter((i) => i.id !== invoice.id),
+          ],
+        }),
+      markInvoicePaid: (id, paidAt) =>
+        set({ invoices: get().invoices.map((i) => (i.id === id ? { ...i, paidAt } : i)) }),
+      deleteInvoice: (id) => set({ invoices: get().invoices.filter((i) => i.id !== id) }),
+      logTime: (entry) =>
+        set({
+          timeEntries: [
+            { ...entry, hours: Math.max(0, round1(entry.hours)) },
+            ...get().timeEntries.filter((t) => t.id !== entry.id),
+          ],
+        }),
+      deleteTimeEntry: (id) => set({ timeEntries: get().timeEntries.filter((t) => t.id !== id) }),
+      setFx: (rate) => {
+        if (!Number.isFinite(rate) || rate <= 0) return;
+        set({ fxZar: round2(rate), fxSetAt: todayIso() });
+      },
+      setFees: (fees) =>
+        set({
+          fees: {
+            channel: fees.channel,
+            vendorFeePct: clampFeeInput(fees.vendorFeePct),
+            paymentFeePct: clampFeeInput(fees.paymentFeePct),
+          },
+        }),
+      exportWorkspace: () => {
+        const s = get();
+        const payload: WorkspaceFile = {
+          format: WORKSPACE_FORMAT,
+          version: WORKSPACE_VERSION,
+          exportedAt: new Date().toISOString(),
+          state: persisted(s),
+        };
+        return JSON.stringify(payload, null, 2);
+      },
+      importWorkspace: (json) => {
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(json);
+        } catch {
+          return { ok: false, error: "That file is not valid JSON." };
+        }
+        const file = parsed as Partial<WorkspaceFile>;
+        if (file?.format !== WORKSPACE_FORMAT) {
+          return { ok: false, error: "That is not an Apexline workspace file." };
+        }
+        if (file.version !== WORKSPACE_VERSION) {
+          return {
+            ok: false,
+            error: `That file is version ${String(file.version)}; this desk reads version ${WORKSPACE_VERSION}.`,
+          };
+        }
+        if (!file.state || typeof file.state !== "object") {
+          return { ok: false, error: "That file has no workspace in it." };
+        }
+        for (const key of REQUIRED_COLLECTIONS) {
+          if (!Array.isArray((file.state as Record<string, unknown>)[key])) {
+            return { ok: false, error: `That file is missing its ${key}.` };
+          }
+        }
+        // Merge onto the seed so a file written by an older desk still loads:
+        // anything it does not carry keeps the seeded default.
+        set({ ...demo(), ...file.state });
+        return { ok: true };
+      },
     }),
     {
       name: "apexline-os-v1",
-      partialize: (s) => ({
-        fxZar: s.fxZar,
-        workspace: s.workspace,
-        leads: s.leads,
-        deals: s.deals,
-        offers: s.offers,
-        vendors: s.vendors,
-        clients: s.clients,
-        tasks: s.tasks,
-        qa: s.qa,
-        proposals: s.proposals,
-        activities: s.activities,
-        requests: s.requests,
-        reports: s.reports,
-        outreach: s.outreach,
-        audits: s.audits,
-        portalClientId: s.portalClientId,
-      }),
+      // The server renders the seeded workspace; the browser holds the
+      // operator's real data. Rehydrating during module load would make the
+      // first client render disagree with the server HTML, so we wait for
+      // `useStoreHydration` to call rehydrate() after React has hydrated.
+      skipHydration: true,
+      onRehydrateStorage: () => (state) => state?.setHydrated(true),
+      partialize: persisted,
     },
   ),
 );
@@ -285,9 +443,65 @@ function stageProb(stage: PipelineStage) {
   return Math.round((i / (PIPELINE_STAGES.length - 2)) * 80);
 }
 
-export function vendorMonthly(v: Vendor | undefined) {
-  if (!v) return 0;
-  return v.rateType === "monthly" ? v.rateUsd : v.rateUsd * 80;
+export function clientInvoices(s: ApexState, clientId: string) {
+  return s.invoices
+    .filter((i) => i.clientId === clientId)
+    .sort((a, b) => b.issuedAt.localeCompare(a.issuedAt));
+}
+
+export function cash(s: ApexState) {
+  return cashSummary(s.invoices, todayIso());
+}
+
+/**
+ * The README's rule made real: no vendor work before setup and the first
+ * retainer are paid. Without invoices this was a status enum somebody had to
+ * remember to set.
+ */
+export function setupSettled(s: ApexState, clientId: string) {
+  const invoices = clientInvoices(s, clientId);
+  const setup = invoices.find((i) => i.kind === "setup");
+  const firstRetainer = invoices.filter((i) => i.kind === "retainer").at(-1);
+  if (!setup && !firstRetainer) return false;
+  return Boolean(setup?.paidAt) && Boolean(firstRetainer?.paidAt);
+}
+
+export function overdueFor(s: ApexState, clientId: string) {
+  const today = todayIso();
+  return clientInvoices(s, clientId).filter((i) => invoiceState(i, today) === "overdue");
+}
+
+/** Current calendar month, yyyy-mm, in UTC so the server and browser agree. */
+export function currentMonth() {
+  return todayIso().slice(0, 7);
+}
+
+/**
+ * Hours logged against a client this month, measured against the hours its
+ * price assumed. This is the difference between margin you assumed and margin
+ * you earned.
+ */
+export function clientEffort(s: ApexState, clientId: string, month = currentMonth()) {
+  const client = s.clients.find((c) => c.id === clientId);
+  const logged = s.timeEntries
+    .filter((t) => t.clientId === clientId && t.date.startsWith(month))
+    .reduce((a, t) => a + t.hours, 0);
+  return effortSummary(client?.quotedHoursPerMonth ?? HOURS_PER_MONTH_FALLBACK, logged);
+}
+
+/**
+ * What this client's vendor costs this month. Hourly vendors are costed on the
+ * hours actually logged; with nothing logged we fall back to the quote and the
+ * figure is flagged unmeasured rather than presented as fact.
+ */
+export function clientVendorCost(s: ApexState, c: Client, month = currentMonth()) {
+  const vendor = s.vendors.find((v) => v.id === c.vendorId);
+  const effort = clientEffort(s, c.id, month);
+  return vendorCostForMonth(vendor, effort.unmeasured ? effort.quotedHours : effort.loggedHours);
+}
+
+export function vendorMonthly(v: Vendor | undefined, hours = HOURS_PER_MONTH_FALLBACK) {
+  return vendorCostForMonth(v, hours);
 }
 
 export function todayIso() {
@@ -297,11 +511,17 @@ export function todayIso() {
 export function kpis(s: ApexState) {
   const active = s.clients.filter((c) => c.status === "active" || c.status === "at_risk" || c.status === "onboarding");
   const mrr = active.reduce((a, c) => a + c.monthlyFeeUsd, 0);
-  const vendor = active.reduce((a, c) => {
-    const v = s.vendors.find((x) => x.id === c.vendorId);
-    return a + vendorMonthly(v);
-  }, 0);
-  const tools = active.reduce((a, c) => a + c.toolCostUsd + c.otherCostUsd, 0);
+  // Fees are part of the cost base, not a footnote: marketplace fees raise what
+  // the vendor costs, payment fees come out of what the client pays.
+  const vendor = active.reduce(
+    (a, c) => a + landedVendorCost(clientVendorCost(s, c), s.fees.vendorFeePct),
+    0,
+  );
+  const paymentFees = active.reduce(
+    (a, c) => a + c.monthlyFeeUsd * (s.fees.paymentFeePct / 100),
+    0,
+  );
+  const tools = active.reduce((a, c) => a + c.toolCostUsd + c.otherCostUsd, 0) + paymentFees;
   const gp = mrr - vendor - tools;
   const margin = mrr ? (gp / mrr) * 100 : 0;
   const openDeals = s.deals.filter((d) => d.stage !== "won" && d.stage !== "lost");
@@ -310,9 +530,18 @@ export function kpis(s: ApexState) {
   const hot = [...s.leads].filter((l) => l.status !== "won" && l.status !== "lost").sort((a, b) => b.score - a.score);
   const atRisk = s.clients.filter((c) => c.status === "at_risk" || c.invoiceStatus !== "current" || c.csat < 4);
   const thin = active
-    .map((c) => ({ c, pnl: clientPnl(c, vendorMonthly(s.vendors.find((v) => v.id === c.vendorId))) }))
+    .map((c) => ({ c, pnl: clientPnl(c, clientVendorCost(s, c), s.fees) }))
     .filter((x) => x.pnl.margin < 40);
-  return { active, mrr, vendor, tools, gp, margin, openDeals, pipeline, dueToday, hot, atRisk, thin };
+  // Clients being worked past the hours they were priced for. On an hourly
+  // vendor this is margin leaking now; on a monthly vendor it is the renewal
+  // and quality risk that shows up later.
+  const overrunning = active
+    .map((c) => ({ c, effort: clientEffort(s, c.id) }))
+    .filter((x) => x.effort.overrun);
+  return {
+    active, mrr, vendor, tools, paymentFees, gp, margin, openDeals, pipeline, dueToday, hot, atRisk,
+    thin, overrunning,
+  };
 }
 
 export function blankLead(): Lead {

@@ -32,3 +32,35 @@ The app ships with a seeded Pretoria-operator workspace (Northbridge, Helios, Oa
 ## Stack
 
 TanStack Start, React 19, Tailwind v4, Zustand. AI drafts via the server when a key is present.
+
+## Run it
+
+```bash
+npm install
+npm run dev        # http://localhost:3000
+```
+
+Ship build:
+
+```bash
+npm run build      # -> .output (Nitro)
+npm start          # node .output/server/index.mjs, PORT defaults to 3000
+```
+
+Nitro detects the host at build time: locally it emits a Node server, and on
+Vercel it emits `.vercel/output`. No per-host config to maintain.
+
+Checks:
+
+```bash
+npm run typecheck  # tsc --noEmit
+npm run smoke      # every route in a real browser, against a running server
+```
+
+`npm run smoke` drives Chromium over all 16 routes twice — once cold, once with an
+edited workspace in localStorage — and fails on any console error, non-200, or
+hydration mismatch. It needs the server up (`npm start`) and Playwright browsers
+(`npx playwright install chromium`). Point it elsewhere with `SMOKE_BASE_URL`.
+
+Set `XAI_API_KEY` to enable the AI draft endpoints; without it the desk runs fine
+and the draft buttons report that AI is unavailable.

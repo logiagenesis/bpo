@@ -124,6 +124,8 @@ export interface Offer {
   deliverables: string;
   workload: string;
   vendorCostUsd: number;
+  /** Hours a month the price assumes. The margin is only true at this figure. */
+  quotedHoursPerMonth: number;
   desiredMarginPct: number;
   sla: SlaLevel;
   timeline: string;
@@ -187,7 +189,43 @@ export interface Client {
   notes: string;
   toolCostUsd: number;
   otherCostUsd: number;
+  /** Hours a month this retainer was priced for. Logged hours are measured against it. */
+  quotedHoursPerMonth: number;
   invoiceStatus: "current" | "overdue" | "unpaid_setup";
+}
+
+/**
+ * Money asked for, and whether it arrived. Gross profit that was never
+ * collected is not profit — it is a receivable with good manners.
+ */
+export interface Invoice {
+  id: string;
+  clientId: string;
+  number: string;
+  kind: "setup" | "retainer";
+  amountUsd: number;
+  /** yyyy-mm-dd */
+  issuedAt: string;
+  dueAt: string;
+  /** null until the money actually lands. */
+  paidAt: string | null;
+  note: string;
+}
+
+export type InvoiceState = "paid" | "due" | "overdue";
+
+/**
+ * One block of vendor work. Without these, margin is the figure you assumed at
+ * signing, restated every month with total confidence.
+ */
+export interface TimeEntry {
+  id: string;
+  clientId: string;
+  vendorId: string;
+  /** yyyy-mm-dd */
+  date: string;
+  hours: number;
+  note: string;
 }
 
 export interface Task {
