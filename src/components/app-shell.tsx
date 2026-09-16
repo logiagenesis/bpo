@@ -1,6 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
+  Banknote,
   BookOpen,
   Briefcase,
   Building2,
@@ -32,6 +33,7 @@ const NAV = [
     items: [
       { to: "/", label: "Command", icon: LayoutDashboard },
       { to: "/profit", label: "Profit", icon: Wallet },
+      { to: "/cash", label: "Cash", icon: Banknote },
       { to: "/offers", label: "Offers", icon: Briefcase },
     ],
   },

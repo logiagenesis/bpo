@@ -13,6 +13,7 @@ import type {
   PipelineStage,
   Proposal,
   QaReview,
+  Invoice,
   Task,
   TimeEntry,
   Vendor,
@@ -30,14 +31,17 @@ import {
   SEED_QA,
   SEED_REPORTS,
   SEED_REQUESTS,
+  SEED_INVOICES,
   SEED_TASKS,
   SEED_TIME,
   SEED_VENDORS,
 } from "./seed";
 import { uid } from "./utils";
 import {
+  cashSummary,
   clientPnl,
   effortSummary,
+  invoiceState,
   FX_ZAR_SEED,
   HOURS_PER_MONTH_FALLBACK,
   landedVendorCost,
@@ -74,6 +78,7 @@ export function persisted(s: ApexState) {
     outreach: s.outreach,
     audits: s.audits,
     timeEntries: s.timeEntries,
+    invoices: s.invoices,
     portalClientId: s.portalClientId,
   };
 }
@@ -120,6 +125,7 @@ export interface ApexState {
   outreach: OutreachDraft[];
   audits: AuditResult[];
   timeEntries: TimeEntry[];
+  invoices: Invoice[];
   portalClientId: string;
 
   setHydrated: (v: boolean) => void;
@@ -148,6 +154,9 @@ export interface ApexState {
   setPortalClient: (id: string) => void;
   setFx: (rate: number) => void;
   setFees: (fees: FeeProfile) => void;
+  upsertInvoice: (invoice: Invoice) => void;
+  markInvoicePaid: (id: string, paidAt: string) => void;
+  deleteInvoice: (id: string) => void;
   logTime: (entry: TimeEntry) => void;
   deleteTimeEntry: (id: string) => void;
   exportWorkspace: () => string;
@@ -178,6 +187,9 @@ function demo(): Omit<
   | "resolveRequest"
   | "addReport"
   | "setPortalClient"
+  | "upsertInvoice"
+  | "markInvoicePaid"
+  | "deleteInvoice"
   | "logTime"
   | "deleteTimeEntry"
   | "setFx"
@@ -204,6 +216,7 @@ function demo(): Omit<
     outreach: SEED_OUTREACH,
     audits: SEED_AUDITS,
     timeEntries: SEED_TIME,
+    invoices: SEED_INVOICES,
     portalClientId: "cli-01",
   };
 }
@@ -339,6 +352,16 @@ export const useApex = create<ApexState>()(
         set({ requests: get().requests.map((r) => (r.id === id ? { ...r, status: "done" } : r)) }),
       addReport: (r) => set({ reports: [r, ...get().reports] }),
       setPortalClient: (id) => set({ portalClientId: id }),
+      upsertInvoice: (invoice) =>
+        set({
+          invoices: [
+            { ...invoice, amountUsd: round2(Math.max(0, invoice.amountUsd)) },
+            ...get().invoices.filter((i) => i.id !== invoice.id),
+          ],
+        }),
+      markInvoicePaid: (id, paidAt) =>
+        set({ invoices: get().invoices.map((i) => (i.id === id ? { ...i, paidAt } : i)) }),
+      deleteInvoice: (id) => set({ invoices: get().invoices.filter((i) => i.id !== id) }),
       logTime: (entry) =>
         set({
           timeEntries: [
@@ -418,6 +441,34 @@ function stageProb(stage: PipelineStage) {
   if (stage === "won") return 100;
   if (stage === "lost") return 0;
   return Math.round((i / (PIPELINE_STAGES.length - 2)) * 80);
+}
+
+export function clientInvoices(s: ApexState, clientId: string) {
+  return s.invoices
+    .filter((i) => i.clientId === clientId)
+    .sort((a, b) => b.issuedAt.localeCompare(a.issuedAt));
+}
+
+export function cash(s: ApexState) {
+  return cashSummary(s.invoices, todayIso());
+}
+
+/**
+ * The README's rule made real: no vendor work before setup and the first
+ * retainer are paid. Without invoices this was a status enum somebody had to
+ * remember to set.
+ */
+export function setupSettled(s: ApexState, clientId: string) {
+  const invoices = clientInvoices(s, clientId);
+  const setup = invoices.find((i) => i.kind === "setup");
+  const firstRetainer = invoices.filter((i) => i.kind === "retainer").at(-1);
+  if (!setup && !firstRetainer) return false;
+  return Boolean(setup?.paidAt) && Boolean(firstRetainer?.paidAt);
+}
+
+export function overdueFor(s: ApexState, clientId: string) {
+  const today = todayIso();
+  return clientInvoices(s, clientId).filter((i) => invoiceState(i, today) === "overdue");
 }
 
 /** Current calendar month, yyyy-mm, in UTC so the server and browser agree. */

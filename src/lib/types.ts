@@ -195,6 +195,26 @@ export interface Client {
 }
 
 /**
+ * Money asked for, and whether it arrived. Gross profit that was never
+ * collected is not profit — it is a receivable with good manners.
+ */
+export interface Invoice {
+  id: string;
+  clientId: string;
+  number: string;
+  kind: "setup" | "retainer";
+  amountUsd: number;
+  /** yyyy-mm-dd */
+  issuedAt: string;
+  dueAt: string;
+  /** null until the money actually lands. */
+  paidAt: string | null;
+  note: string;
+}
+
+export type InvoiceState = "paid" | "due" | "overdue";
+
+/**
  * One block of vendor work. Without these, margin is the figure you assumed at
  * signing, restated every month with total confidence.
  */

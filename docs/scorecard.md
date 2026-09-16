@@ -33,10 +33,10 @@ came from. Scored September 2026 at commit `00de7df`.
 | 5 | Effort spent vs quoted | ● | `TimeEntry` + `clientEffort()`, Effort desk at `/effort` |
 | 5 | QA per cycle | ● | `QaReview`, `src/routes/qa.tsx` |
 | 5 | Client status without exposing vendor | ● | `src/routes/portal.tsx` |
-| 6 | Invoice records | ○ | one enum on `Client`, no amounts or dates |
-| 6 | Cash collected vs invoiced | ○ | not modelled |
-| 6 | DSO | ○ | not modelled |
-| 6 | Overdue escalation | ◐ | flagged on the dashboard; no ageing, no escalation |
+| 6 | Invoice records | ● | `Invoice` entity, Cash desk at `/cash` |
+| 6 | Cash collected vs invoiced | ● | `cashSummary()` — collected, outstanding, overdue |
+| 6 | DSO | ● | `cashSummary().dso`, unpaid counted to today |
+| 6 | Overdue escalation | ● | ageing buckets, days-late per invoice, overdue flagged on Profit from real invoices |
 | 7 | Churn, lifetime, lifetime GP | ○ | `churned` status exists; no economics derived |
 | 7 | CSAT early warning | ● | `Client.csat`, at-risk flagging in `kpis()` |
 | 7 | Renewal / price-review dates | ○ | `startDate` only; no renewal field |
@@ -45,8 +45,9 @@ came from. Scored September 2026 at commit `00de7df`.
 | 8 | Alert when actuals breach the floor | ● | overrun flagged on Effort and Profit; margin-at-quote vs margin-actual |
 | 8 | Export everything | ● | `exportWorkspace` / `importWorkspace`, versioned file, round trip covered by `npm run smoke` |
 
-**24 built, 4 partial, 10 missing** (was 19/5/14). Items 1–4 of the build order
-below have shipped. Cash is the last big one.
+**28 built, 3 partial, 7 missing** (was 19/5/14). All five items of the original
+build order have shipped. What remains is the analytics layer, which is mostly
+derivation now that effort and cash exist.
 
 ## The five that cost real money
 
@@ -88,12 +89,25 @@ Business Plus moves gross profit from **$10,460 (60.1%) to $9,800 (56.3%)** — 
 3.8-point margin drop that the desk previously did not show at all. Asserted in
 `npm run smoke`.
 
-### 3. There is no cash
+### 3. There is no cash — **fixed**
 
-`Client.invoiceStatus` is `"current" | "overdue" | "unpaid_setup"`. There is no
-invoice amount, no issue date, no due date, no paid date. The Profit desk shows
-gross profit that may be entirely uncollected. For a desk whose stated purpose is
-profit, cash is not a reporting nicety — it is the scoreboard.
+`Client.invoiceStatus` was `"current" | "overdue" | "unpaid_setup"` and nothing
+else: no amount, no issue date, no due date, no paid date. The Profit desk showed
+gross profit that might have been entirely uncollected.
+
+`Invoice` now records amount, issue, due and paid dates. The Cash desk (`/cash`)
+reports collected against invoiced, outstanding, overdue, DSO, and an ageing
+breakdown. On the seeded book: **$42,500 invoiced, $29,900 collected, $12,600
+outstanding and all of it past due**, with Meridian's July retainer 63 days late
+while the Profit desk reports its 57% margin every month.
+
+DSO counts unpaid invoices to today rather than excluding them — leaving stale
+invoices out would make the number improve as collections got worse.
+
+The Profit desk's overdue flag now derives from actual invoices instead of the
+hand-set status enum nobody remembers to update. `setupSettled()` makes the
+README's "no vendor work before setup and month 1 are paid" rule checkable
+rather than a thing to remember.
 
 ### 4. FX is a hardcoded constant — **fixed**
 
@@ -119,9 +133,18 @@ Ranked by margin protected per hour of build:
 2. ~~**FX rate editable and dated**~~ — **done.**
 3. ~~**Fee drag in `priceFromCost`**~~ — **done.**
 4. ~~**Effort tracking and actual-vs-quoted margin**~~ — **done.**
-5. **Invoices and cash** — the last big one. Closes the loop from profit to
-   money. Needs an `Invoice` entity with amount and dates, then DSO and
-   cash-collected derive from it.
+5. ~~**Invoices and cash**~~ — **done.**
+
+Next, and all derivation rather than new plumbing:
+
+6. **Win rate and pipeline velocity by segment** — needs stage changes
+   timestamped, which they currently are not.
+7. **Churn, lifetime, lifetime gross profit** — `churned` exists as a status;
+   no economics come off it.
+8. **Margin drift over time** — every figure is still a snapshot. Effort and
+   cash history now exist to derive it from.
+9. **Vendor utilisation roll-up** — hours are tracked per client but not
+   summed per vendor, so "can this vendor take another client" is still a guess.
 
 Then the analytics layer (win rate, velocity, churn, LTV, margin drift), which is
 mostly derivation once 4 and 5 exist.

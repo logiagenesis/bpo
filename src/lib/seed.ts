@@ -10,6 +10,7 @@ import type {
   OutreachDraft,
   Proposal,
   QaReview,
+  Invoice,
   Task,
   TimeEntry,
   Vendor,
@@ -556,4 +557,27 @@ export const SEED_TIME: TimeEntry[] = [
   { id: "te-07", clientId: "cli-03", vendorId: "ven-03", date: "2026-09-02", hours: 26, note: "September list — 40 verified buyers." },
   { id: "te-08", clientId: "cli-03", vendorId: "ven-03", date: "2026-09-09", hours: 44, note: "Client changed the ICP. List rebuilt from scratch — not re-quoted." },
   { id: "te-09", clientId: "cli-03", vendorId: "ven-03", date: "2026-09-15", hours: 42, note: "Second rebuild after the ICP moved again. Still on the original price." },
+];
+
+/**
+ * Invoiced since each client started, on 14-day terms. Meridian is the case the
+ * Cash desk exists for: two retainers unpaid, the older one well past due,
+ * while the Profit desk happily reports its 57% margin every month.
+ */
+export const SEED_INVOICES: Invoice[] = [
+  { id: "inv-01", clientId: "cli-01", number: "APX-1001", kind: "setup", amountUsd: 1800, issuedAt: "2026-06-20", dueAt: "2026-07-04", paidAt: "2026-06-24", note: "Setup — onboarding and scripts." },
+  { id: "inv-02", clientId: "cli-01", number: "APX-1006", kind: "retainer", amountUsd: 4200, issuedAt: "2026-07-01", dueAt: "2026-07-15", paidAt: "2026-07-09", note: "July retainer." },
+  { id: "inv-03", clientId: "cli-01", number: "APX-1012", kind: "retainer", amountUsd: 4200, issuedAt: "2026-08-01", dueAt: "2026-08-15", paidAt: "2026-08-12", note: "August retainer." },
+  { id: "inv-04", clientId: "cli-01", number: "APX-1019", kind: "retainer", amountUsd: 4200, issuedAt: "2026-09-01", dueAt: "2026-09-15", paidAt: "2026-09-11", note: "September retainer." },
+
+  { id: "inv-05", clientId: "cli-02", number: "APX-1002", kind: "setup", amountUsd: 2500, issuedAt: "2026-05-20", dueAt: "2026-06-03", paidAt: "2026-05-27", note: "Setup — glossary, macros, rota." },
+  { id: "inv-06", clientId: "cli-02", number: "APX-1013", kind: "retainer", amountUsd: 6800, issuedAt: "2026-08-01", dueAt: "2026-08-15", paidAt: "2026-08-14", note: "August retainer." },
+  { id: "inv-07", clientId: "cli-02", number: "APX-1020", kind: "retainer", amountUsd: 6800, issuedAt: "2026-09-01", dueAt: "2026-09-15", paidAt: null, note: "September retainer. Chase — one day late." },
+
+  { id: "inv-08", clientId: "cli-03", number: "APX-1003", kind: "setup", amountUsd: 1200, issuedAt: "2026-07-12", dueAt: "2026-07-26", paidAt: "2026-07-18", note: "Setup — ICP and list spec." },
+  { id: "inv-09", clientId: "cli-03", number: "APX-1021", kind: "retainer", amountUsd: 3500, issuedAt: "2026-09-01", dueAt: "2026-09-15", paidAt: "2026-09-08", note: "September retainer." },
+
+  { id: "inv-10", clientId: "cli-04", number: "APX-1004", kind: "setup", amountUsd: 1500, issuedAt: "2026-05-02", dueAt: "2026-05-16", paidAt: "2026-05-14", note: "Setup — NDA, bundles template." },
+  { id: "inv-11", clientId: "cli-04", number: "APX-1014", kind: "retainer", amountUsd: 2900, issuedAt: "2026-07-01", dueAt: "2026-07-15", paidAt: null, note: "July retainer. Chased three times. Practice manager says finance is slow." },
+  { id: "inv-12", clientId: "cli-04", number: "APX-1022", kind: "retainer", amountUsd: 2900, issuedAt: "2026-09-01", dueAt: "2026-09-15", paidAt: null, note: "September retainer. Do not start October work until July clears." },
 ];

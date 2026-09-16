@@ -204,3 +204,75 @@ export function vendorCostForMonth(
   if (vendor.rateType === "monthly") return vendor.rateUsd;
   return round2(vendor.rateUsd * Math.max(0, hours));
 }
+
+export interface CashSummary {
+  invoiced: number;
+  collected: number;
+  outstanding: number;
+  overdue: number;
+  /** Days sales outstanding: how long cash takes to arrive, on average. */
+  dso: number;
+  /** Outstanding split by how late it is. */
+  ageing: { current: number; d1to30: number; d31to60: number; d60plus: number };
+}
+
+export function invoiceState(
+  invoice: { paidAt: string | null; dueAt: string },
+  today: string,
+): "paid" | "due" | "overdue" {
+  if (invoice.paidAt) return "paid";
+  return invoice.dueAt < today ? "overdue" : "due";
+}
+
+export function daysBetween(from: string, to: string) {
+  const a = Date.parse(`${from}T00:00:00Z`);
+  const b = Date.parse(`${to}T00:00:00Z`);
+  if (Number.isNaN(a) || Number.isNaN(b)) return 0;
+  return Math.round((b - a) / 86_400_000);
+}
+
+/**
+ * Cash, not revenue. DSO counts paid invoices by how long they took, and
+ * unpaid ones by how long they have been waiting — leaving the stale ones out
+ * would make the number look better the worse things got.
+ */
+export function cashSummary(
+  invoices: { amountUsd: number; issuedAt: string; dueAt: string; paidAt: string | null }[],
+  today: string,
+): CashSummary {
+  const invoiced = round2(invoices.reduce((a, i) => a + i.amountUsd, 0));
+  const collected = round2(
+    invoices.filter((i) => i.paidAt).reduce((a, i) => a + i.amountUsd, 0),
+  );
+  const open = invoices.filter((i) => !i.paidAt);
+  const outstanding = round2(open.reduce((a, i) => a + i.amountUsd, 0));
+  const overdue = round2(
+    open.filter((i) => i.dueAt < today).reduce((a, i) => a + i.amountUsd, 0),
+  );
+
+  const spans = invoices.map((i) => daysBetween(i.issuedAt, i.paidAt ?? today));
+  const dso = spans.length ? round1(spans.reduce((a, d) => a + d, 0) / spans.length) : 0;
+
+  const ageing = { current: 0, d1to30: 0, d31to60: 0, d60plus: 0 };
+  for (const i of open) {
+    const late = daysBetween(i.dueAt, today);
+    if (late <= 0) ageing.current += i.amountUsd;
+    else if (late <= 30) ageing.d1to30 += i.amountUsd;
+    else if (late <= 60) ageing.d31to60 += i.amountUsd;
+    else ageing.d60plus += i.amountUsd;
+  }
+
+  return {
+    invoiced,
+    collected,
+    outstanding,
+    overdue,
+    dso,
+    ageing: {
+      current: round2(ageing.current),
+      d1to30: round2(ageing.d1to30),
+      d31to60: round2(ageing.d31to60),
+      d60plus: round2(ageing.d60plus),
+    },
+  };
+}

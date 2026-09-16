@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Field, Input, Select } from "@/components/ui/field";
 import { channelFee, clientPnl, SOURCING_CHANNELS, usd, zar } from "@/lib/money";
 import type { SourcingChannel } from "@/lib/money";
-import { clientEffort, clientVendorCost, kpis, todayIso, useApex } from "@/lib/store";
+import { clientEffort, clientVendorCost, kpis, overdueFor, todayIso, useApex } from "@/lib/store";
 
 export const Route = createFileRoute("/profit")({ component: ProfitPage });
 
@@ -18,7 +18,15 @@ function ProfitPage() {
   const [notice, setNotice] = useState<{ tone: "gain" | "loss"; text: string } | null>(null);
   const rows = s.clients.map((c) => {
     const v = s.vendors.find((x) => x.id === c.vendorId);
-    return { c, v, pnl: clientPnl(c, clientVendorCost(s, c), s.fees), effort: clientEffort(s, c.id) };
+    return {
+      c,
+      v,
+      pnl: clientPnl(c, clientVendorCost(s, c), s.fees),
+      effort: clientEffort(s, c.id),
+      // Derived from actual invoices rather than the hand-set status enum,
+      // which nobody remembers to update.
+      overdue: overdueFor(s, c.id),
+    };
   });
 
   return (
@@ -144,7 +152,7 @@ function ProfitPage() {
             </tr>
           </thead>
           <tbody>
-            {rows.map(({ c, v, pnl, effort }) => (
+            {rows.map(({ c, v, pnl, effort, overdue }) => (
               <tr key={c.id} className="border-t border-line">
                 <td className="px-4 py-3">
                   <Link to="/clients/$clientId" params={{ clientId: c.id }} className="hover:text-accent">
@@ -161,7 +169,11 @@ function ProfitPage() {
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-1">
-                    {c.invoiceStatus !== "current" ? <Badge tone="loss">{c.invoiceStatus.replace("_", " ")}</Badge> : null}
+                    {overdue.length ? (
+                      <Badge tone="loss">
+                        {usd(overdue.reduce((a, i) => a + i.amountUsd, 0))} overdue
+                      </Badge>
+                    ) : null}
                     {c.status === "at_risk" ? <Badge tone="warn">at risk</Badge> : null}
                     {c.csat > 0 && c.csat < 4 ? <Badge tone="warn">CSAT</Badge> : null}
                     {pnl.margin < 40 ? <Badge tone="loss">thin</Badge> : null}

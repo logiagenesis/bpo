@@ -1,7 +1,8 @@
 import { chromium } from "playwright";
 
 const ROUTES = ["/", "/leads", "/audit", "/pipeline", "/offers", "/outreach", "/proposals",
-  "/vendors", "/clients", "/qa", "/profit", "/portal", "/tasks", "/effort", "/services", "/templates", "/assistant"];
+  "/vendors", "/clients", "/qa", "/profit", "/cash", "/portal", "/tasks", "/effort", "/services",
+  "/templates", "/assistant"];
 const BASE = process.env.SMOKE_BASE_URL ?? "http://127.0.0.1:3000";
 // The sandbox proxy has no CA for fonts.googleapis.com; that is an environment
 // artefact, not an app fault, so it is filtered out of the failure count.
@@ -157,6 +158,34 @@ if (!(hoursBefore > 0)) {
   console.log("FAIL no seeded hours found");
 }
 void before;
+
+// Cash is the point: revenue that never arrived is not profit. Seeded book is
+// $42,500 invoiced, $29,900 collected, $12,600 outstanding and all of it overdue.
+console.log("\n--- cash is tracked separately from revenue ---");
+await page.goto(BASE + "/cash", { waitUntil: "networkidle" });
+await page.waitForTimeout(400);
+
+// Read the value element, not the whole tile: the tile's hint line carries its
+// own numbers (a rand conversion, an invoice count) that would run together
+// with the figure under test.
+const money = async (label) =>
+  Number((await page.locator(`[data-stat-value="${label}"]`).innerText()).replace(/[^0-9]/g, ""));
+const collected = await money("Collected");
+const outstanding = await money("Outstanding");
+const overdue = await money("Overdue");
+
+const cashOk = collected === 29900 && outstanding === 12600 && overdue === 12600;
+console.log(`${cashOk ? "ok  " : "FAIL"} collected $${collected}, outstanding $${outstanding}, overdue $${overdue}`);
+if (!cashOk) failures++;
+
+// Marking an invoice paid must move money from outstanding to collected.
+await page.locator('button:has-text("Mark paid")').first().click();
+await page.waitForTimeout(400);
+const collectedAfter = await money("Collected");
+const outstandingAfter = await money("Outstanding");
+const cashMoved = collectedAfter > collected && outstandingAfter < outstanding;
+console.log(`${cashMoved ? "ok  " : "FAIL"} after marking paid: collected $${collectedAfter}, outstanding $${outstandingAfter}`);
+if (!cashMoved) failures++;
 
 // A file that is not ours must be refused, not silently loaded over the desk.
 const rejected = await page.evaluate(() => {
