@@ -27,6 +27,8 @@ Target gross margin 45–60%. Below 40% the quote is blocked with a warning.
 
 ## Demo workspace
 
-The app ships with a seeded operator workspace (Northbridge, Helios, Oak & Pine, Meridian). Data lives in the browser. Reset from Profit.
+The app ships with a seeded Pretoria-operator workspace (Northbridge, Helios, Oak & Pine, Meridian). Data lives in the browser. Reset from Profit.
 
-Live preview is the Grok app. This repo is the source of record.
+## Stack
+
+TanStack Start, React 19, Tailwind v4, Zustand. AI drafts via the server when a key is present.
