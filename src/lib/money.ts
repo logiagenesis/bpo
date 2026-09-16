@@ -1,12 +1,74 @@
 import type { Client, SlaLevel } from "./types";
 import { SLA_MULTIPLIER } from "./types";
 
-export const FX_ZAR = 18.2;
+/**
+ * Seed rate only. The live rate lives on the store as `fxZar` with the date the
+ * operator last set it — a constant compiled into the bundle is wrong the day
+ * after it is written, and every rand figure on the desk derives from it.
+ */
+export const FX_ZAR_SEED = 18.2;
 
-export function priceFromCost(vendorCost: number, marginPct: number, sla: SlaLevel = "standard") {
+/**
+ * Sourcing a vendor through a marketplace costs more than the vendor's rate.
+ * Percentages are the buyer-side fee charged on payments to the vendor, as
+ * published September 2026 — confirm before relying on them commercially.
+ * See docs/competitor-audit.md.
+ */
+export const SOURCING_CHANNELS = [
+  { id: "direct", label: "Direct / EFT", vendorFeePct: 0 },
+  { id: "upwork", label: "Upwork (Basic)", vendorFeePct: 5 },
+  { id: "upwork_business", label: "Upwork (Business Plus)", vendorFeePct: 10 },
+  { id: "fiverr", label: "Fiverr", vendorFeePct: 5.5 },
+  { id: "other", label: "Other marketplace", vendorFeePct: 10 },
+] as const;
+
+export type SourcingChannel = (typeof SOURCING_CHANNELS)[number]["id"];
+
+export interface FeeProfile {
+  /**
+   * Which channel the vendor is sourced through. Stored alongside the rate
+   * because two channels can charge the same percentage — the rate alone
+   * cannot tell you which one the operator picked.
+   */
+  channel: SourcingChannel;
+  /** Marketplace fee we pay on top of the vendor's rate, percent. */
+  vendorFeePct: number;
+  /** Processing fee taken out of what the client pays us, percent. */
+  paymentFeePct: number;
+}
+
+export const NO_FEES: FeeProfile = { channel: "direct", vendorFeePct: 0, paymentFeePct: 0 };
+
+export function channelFee(id: SourcingChannel) {
+  return SOURCING_CHANNELS.find((c) => c.id === id)?.vendorFeePct ?? 0;
+}
+
+function clampPct(n: number, max = 100) {
+  if (!Number.isFinite(n)) return 0;
+  return Math.min(max, Math.max(0, n));
+}
+
+/** What the vendor actually costs once the marketplace has taken its cut. */
+export function landedVendorCost(vendorCost: number, vendorFeePct = 0) {
+  return round2(vendorCost * (1 + clampPct(vendorFeePct, 50) / 100));
+}
+
+/**
+ * Price up from what delivery really costs, so the target margin survives
+ * contact with the fees. Vendor-side fees raise the cost base; payment-side
+ * fees come out of revenue, so the price is grossed up to absorb them.
+ */
+export function priceFromCost(
+  vendorCost: number,
+  marginPct: number,
+  sla: SlaLevel = "standard",
+  fees: FeeProfile = NO_FEES,
+) {
   const m = Math.min(85, Math.max(5, marginPct)) / 100;
-  const base = vendorCost / (1 - m);
-  return round2(base * SLA_MULTIPLIER[sla]);
+  const base = landedVendorCost(vendorCost, fees.vendorFeePct) / (1 - m);
+  const withSla = base * SLA_MULTIPLIER[sla];
+  const payment = clampPct(fees.paymentFeePct, 50) / 100;
+  return round2(withSla / (1 - payment));
 }
 
 export function grossProfit(revenue: number, vendor: number, tools = 0, other = 0) {
@@ -47,7 +109,7 @@ export function usdExact(n: number) {
  * renders differently on the server and in the browser and breaks hydration.
  * SA convention is a space separator, so we emit that on both sides.
  */
-export function zar(nUsd: number, fx = FX_ZAR) {
+export function zar(nUsd: number, fx = FX_ZAR_SEED) {
   const rands = Math.round(nUsd * fx);
   const sign = rands < 0 ? "-" : "";
   const grouped = Math.abs(rands)
@@ -62,11 +124,12 @@ export function marginTone(pct: number): "gain" | "warn" | "loss" {
   return "loss";
 }
 
-export function clientPnl(c: Client, vendorRateMonthly: number) {
-  const vendor = vendorRateMonthly;
-  const gp = grossProfit(c.monthlyFeeUsd, vendor, c.toolCostUsd, c.otherCostUsd);
+export function clientPnl(c: Client, vendorRateMonthly: number, fees: FeeProfile = NO_FEES) {
+  const vendor = landedVendorCost(vendorRateMonthly, fees.vendorFeePct);
+  const paymentFee = round2(c.monthlyFeeUsd * (clampPct(fees.paymentFeePct, 50) / 100));
+  const gp = grossProfit(c.monthlyFeeUsd, vendor, c.toolCostUsd, c.otherCostUsd + paymentFee);
   const m = marginPct(c.monthlyFeeUsd, gp);
-  return { vendor, gp, margin: m, tone: marginTone(m) };
+  return { vendor, paymentFee, gp, margin: m, tone: marginTone(m) };
 }
 
 export function scoreLead(input: {

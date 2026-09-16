@@ -25,7 +25,7 @@ function ClientDetail() {
   }
   const vendor = s.vendors.find((v) => v.id === c.vendorId);
   const offer = s.offers.find((o) => o.id === c.offerId);
-  const pnl = clientPnl(c, vendorMonthly(vendor));
+  const pnl = clientPnl(c, vendorMonthly(vendor), s.fees);
   const tasks = s.tasks.filter((t) => t.clientId === c.id);
   const qa = s.qa.filter((q) => q.clientId === c.id);
   const reports = s.reports.filter((r) => r.clientId === c.id);

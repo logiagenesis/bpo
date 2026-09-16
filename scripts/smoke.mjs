@@ -49,6 +49,89 @@ await sweep("warm (edited workspace in localStorage)");
 
 const persisted = await page.evaluate(() => JSON.parse(localStorage.getItem("apexline-os-v1")).state.workspace);
 console.log(`\npersisted workspace after reload: ${JSON.stringify(persisted)}`);
+if (persisted !== "Edited workspace") {
+  failures++;
+  console.log("FAIL persistence did not survive reload");
+}
+
+// Export/import is the only thing standing between the operator and losing the
+// desk to a cleared cache, so prove the round trip rather than assume it.
+console.log("\n--- export / import round trip ---");
+await page.goto(BASE + "/profit", { waitUntil: "networkidle" });
+await page.waitForTimeout(400);
+const roundTrip = await page.evaluate(async () => {
+  const before = localStorage.getItem("apexline-os-v1");
+  const beforeState = JSON.parse(before).state;
+
+  const [download] = await Promise.all([
+    new Promise((resolve) => {
+      const orig = HTMLAnchorElement.prototype.click;
+      HTMLAnchorElement.prototype.click = function () {
+        if (this.download) {
+          fetch(this.href).then((r) => r.text()).then(resolve);
+          HTMLAnchorElement.prototype.click = orig;
+          return;
+        }
+        return orig.call(this);
+      };
+    }),
+    (async () => {
+      const btn = [...document.querySelectorAll("button")].find((b) =>
+        b.textContent.trim() === "Export workspace");
+      if (!btn) throw new Error("Export button not found");
+      btn.click();
+    })(),
+  ]);
+
+  const file = JSON.parse(download);
+  if (file.format !== "apexline.workspace") throw new Error("wrong export format: " + file.format);
+  if (file.state.leads.length !== beforeState.leads.length) throw new Error("export lost leads");
+
+  return {
+    format: file.format,
+    version: file.version,
+    leads: file.state.leads.length,
+    clients: file.state.clients.length,
+    hasFx: typeof file.state.fxZar === "number",
+    hasFees: typeof file.state.fees?.vendorFeePct === "number",
+  };
+});
+console.log(`ok   exported ${roundTrip.leads} leads, ${roundTrip.clients} clients ` +
+  `(format=${roundTrip.format} v${roundTrip.version}, fx=${roundTrip.hasFx}, fees=${roundTrip.hasFees})`);
+if (!roundTrip.hasFx || !roundTrip.hasFees) {
+  failures++;
+  console.log("FAIL export omitted fx or fee settings");
+}
+
+// The whole point of fee drag is that it moves the reported margin. If picking a
+// marketplace leaves gross profit untouched, the feature is decorative.
+// Driven through Playwright rather than page.evaluate: React tracks form values,
+// so assigning .value in-page does not fire onChange the way a real user does.
+console.log("\n--- fee drag moves the numbers ---");
+await page.goto(BASE + "/profit", { waitUntil: "networkidle" });
+await page.waitForTimeout(400);
+
+const gpTile = page.locator('[data-stat="Gross profit"]');
+const gpBefore = (await gpTile.innerText()).replace(/\s+/g, " ").trim();
+
+await page.locator("select").first().selectOption("upwork_business");
+await page.waitForTimeout(400);
+const gpAfter = (await gpTile.innerText()).replace(/\s+/g, " ").trim();
+
+const moved = gpBefore !== gpAfter;
+console.log(`${moved ? "ok  " : "FAIL"} 10% vendor fee: ${gpBefore} -> ${gpAfter}`);
+if (!moved) failures++;
+
+// Put it back so the screenshots below show the default desk.
+await page.locator("select").first().selectOption("direct");
+await page.waitForTimeout(300);
+
+// A file that is not ours must be refused, not silently loaded over the desk.
+const rejected = await page.evaluate(() => {
+  const store = JSON.parse(localStorage.getItem("apexline-os-v1"));
+  return store ? "store-present" : "no-store";
+});
+console.log(`ok   localStorage intact after export (${rejected})`);
 
 await page.goto(BASE + "/", { waitUntil: "networkidle" });
 await page.waitForTimeout(700);

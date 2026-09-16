@@ -19,7 +19,7 @@ function PortalPage() {
   const [body, setBody] = useState("");
   if (!client) return <p className="text-muted">No clients yet.</p>;
   const vendor = s.vendors.find((v) => v.id === client.vendorId);
-  const pnl = clientPnl(client, vendorMonthly(vendor));
+  const pnl = clientPnl(client, vendorMonthly(vendor), s.fees);
   const reports = s.reports.filter((r) => r.clientId === client.id);
   const reqs = s.requests.filter((r) => r.clientId === client.id);
   const tasks = s.tasks.filter((t) => t.clientId === client.id);

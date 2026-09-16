@@ -137,7 +137,7 @@ function MoneyStrip() {
     .filter((c) => c.status !== "churned")
     .map((c) => {
       const v = s.vendors.find((x) => x.id === c.vendorId);
-      return { c, pnl: clientPnl(c, vendorMonthly(v)) };
+      return { c, pnl: clientPnl(c, vendorMonthly(v), s.fees) };
     });
   return (
     <section className="mt-10">

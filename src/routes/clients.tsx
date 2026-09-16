@@ -28,7 +28,7 @@ function ClientsPage() {
           <tbody>
             {s.clients.map((c) => {
               const v = s.vendors.find((x) => x.id === c.vendorId);
-              const pnl = clientPnl(c, vendorMonthly(v));
+              const pnl = clientPnl(c, vendorMonthly(v), s.fees);
               return (
                 <tr key={c.id} className="border-t border-line">
                   <td className="px-4 py-3">
