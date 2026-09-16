@@ -43,9 +43,12 @@ npm run dev        # http://localhost:3000
 Ship build:
 
 ```bash
-npm run build      # -> dist/client + dist/server
-npm start          # serves both on PORT (default 3000)
+npm run build      # -> .output (Nitro)
+npm start          # node .output/server/index.mjs, PORT defaults to 3000
 ```
+
+Nitro detects the host at build time: locally it emits a Node server, and on
+Vercel it emits `.vercel/output`. No per-host config to maintain.
 
 Checks:
 
