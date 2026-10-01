@@ -1,5 +1,7 @@
 # Apexline docs
 
+For the complete final assessment, use [MASTER_REPORT.md](../MASTER_REPORT.md). The files below are preserved historical research. Their competitor pricing, completion counts and enforcement claims were not independently certified; corrections and current validation are in the master report.
+
 | Doc | What it is |
 |---|---|
 | [checklist.md](./checklist.md) | The spec: what a profit-first BPO desk must do, plus the twelve capabilities the audit added |

@@ -1,34 +1,52 @@
 # BPO MAX / Apexline
 
-A local BPO operations desk: score leads, price offers, draft proposals, move deals through a pipeline, manage clients and vendors, track tasks and QA, and review client profit.
+A BPO operations desk for leads, offers, proposals, clients, vendors, tasks, QA, effort, cash and profit.
 
-## Run locally
+**One repository. One branch: `main`.**
 
-Requires Node.js 22.12+ and pnpm.
+## Master report
 
-    pnpm install
-    pnpm dev
+[Read the full master audit, build and publication report](./MASTER_REPORT.md)
 
-Open http://127.0.0.1:5173. Validate with `pnpm check` and `pnpm build`.
-The TanStack Start build includes both client assets and a server bundle.
+[Download the complete Markdown report](https://raw.githubusercontent.com/logiagenesis/bpo/main/MASTER_REPORT.md)
 
-## AI setup
+The standalone report includes the workshop assessment, historical competitor research, repository findings, implemented features, verified numbers, test evidence, setup guide, GitHub consolidation and unfinished production work. Historical research is clearly distinguished from newly verified findings.
 
-Copy .env.example to .env and set XAI_API_KEY and an account-supported XAI_MODEL. Keys remain on the server. Without a key, AI actions report that AI is unavailable; manual workflows and seeded drafts remain usable. Requests use the configured xAI service and may incur usage charges. Review generated claims and pricing before use.
+## Current status
 
-Audits use operator-supplied notes and a reference URL. This version does not fetch arbitrary prospect websites.
+Both earlier development histories are preserved on main. PR #1 and PR #2 are merged; their working branches have been deleted. Source and documentation are public on GitHub. The app is a runnable local MVP; a publicly hosted application has not been deployed.
 
-## Data and limits
+## Run
 
-The initial workspace uses fictional demo leads and clients. Edits persist in browser localStorage on the same origin. Reset from Profit requires confirmation. Clearing browser storage removes saved edits.
+Requires compatible Node.js (22.12+ baseline) and pnpm.
 
-This is a single-operator local MVP, with no authentication, shared database, payment processing, or external outreach delivery. The client portal is an internal preview. Invoice flags are operator-entered; payment-before-work is an operating reminder, not payment verification. Offers display margin warnings; planning FX is illustrative, not live.
+```sh
+git clone https://github.com/logiagenesis/bpo.git
+cd bpo
+pnpm install
+pnpm dev
+```
 
-Keep the development server local. A public deployment needs authentication, server-side tenant storage, AI rate limits, and a deployment adapter.
+Open the local URL Vite prints, normally http://127.0.0.1:5173. If the port changes, browser storage uses a different origin.
 
-## Source
+```sh
+pnpm check
+pnpm validate
+pnpm build
+```
 
-Based on the existing logiagenesis/bpo Apexline source. The workshop notes are reference material; revenue and market claims are not presented as verified evidence.
+TypeScript, domain validation, and client/server production builds passed for the consolidated version.
 
-Built with React 19, TanStack Start/Router, Tailwind CSS 4, and Zustand.
+## Optional AI
 
+Copy .env.example to .env and set XAI_API_KEY plus an account-supported XAI_MODEL. Keys remain on the server. Without a key, manual workflows and demo drafts remain available; live AI generation was not tested. Audits use operator notes and a reference URL, not an automatic website crawl.
+
+## Data and boundaries
+
+Fictional demo data persists in one browser. Export/import workspace backups from Profit. Reset and import require confirmation before replacement. Marketplace presets and FX are planning assumptions; set actual contract fees and an appropriate dated rate.
+
+This version has no authentication, tenant isolation, shared database, payment-provider reconciliation or public deployment adapter. The portal is an internal preview. Payment checks and margin warnings are not universally enforced domain gates. See the master report for the detailed limitations and next build order.
+
+## Stack
+
+React 19 · TanStack Start/Router · Tailwind CSS 4 · Zustand · Vite · pnpm.
