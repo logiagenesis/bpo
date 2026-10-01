@@ -14,7 +14,7 @@ async function chat(system: string, user: string, max_tokens = 1400): Promise<Ch
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: "grok-4.5",
+      model: process.env.XAI_MODEL || "grok-4",
       max_tokens,
       temperature: 0.4,
       messages: [
@@ -28,26 +28,6 @@ async function chat(system: string, user: string, max_tokens = 1400): Promise<Ch
   return { ok: true, text: body.choices?.[0]?.message?.content ?? "" };
 }
 
-async function siteText(url: string): Promise<string> {
-  try {
-    const u = new URL(url);
-    if (!/^https?:$/.test(u.protocol)) return "";
-    const res = await fetch(u.toString(), {
-      signal: AbortSignal.timeout(7000),
-      headers: { "User-Agent": "ApexlineAudit/1.0" },
-    });
-    const html = await res.text();
-    return html
-      .replace(/<script[\s\S]*?<\/script>/gi, " ")
-      .replace(/<style[\s\S]*?<\/style>/gi, " ")
-      .replace(/<[^>]+>/g, " ")
-      .replace(/\s+/g, " ")
-      .slice(0, 7000);
-  } catch {
-    return "";
-  }
-}
-
 const AUDIT_SYS = `You are a BPO operator auditing a prospect so we can sell an outcome, not labour.
 Return STRICT JSON with keys:
 business, bottlenecks (string[]), opportunities (string[]), package, monthlyValueUsd (number),
@@ -59,7 +39,7 @@ Be specific. No fluff. No lifestyle claims.`;
 export const runAudit = createServerFn({ method: "POST" })
   .validator((input: { url: string; notes: string; company: string }) => input)
   .handler(async ({ data }) => {
-    const extracted = data.url ? await siteText(data.url) : "";
+    const extracted = "";
     const user = `Company: ${data.company}
 URL: ${data.url}
 Operator notes: ${data.notes}
@@ -115,3 +95,5 @@ export const runOfferCopy = createServerFn({ method: "POST" })
 Sell the outcome. Flag margin risk if implied margin is under 40%.`;
     return chat(sys, data.spec, 800);
   });
+
+

@@ -1,6 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
+  Banknote,
   BookOpen,
   Briefcase,
   Building2,
@@ -15,6 +16,7 @@ import {
   Send,
   Shield,
   Sparkles,
+  Timer,
   Users,
   Wallet,
   X,
@@ -30,6 +32,7 @@ const NAV = [
     items: [
       { to: "/", label: "Command", icon: LayoutDashboard },
       { to: "/profit", label: "Profit", icon: Wallet },
+      { to: "/cash", label: "Cash", icon: Banknote },
       { to: "/offers", label: "Offers", icon: Briefcase },
     ],
   },
@@ -49,6 +52,7 @@ const NAV = [
       { to: "/clients", label: "Clients", icon: Building2 },
       { to: "/vendors", label: "Vendors", icon: Shield },
       { to: "/tasks", label: "Tasks", icon: ListChecks },
+      { to: "/effort", label: "Effort", icon: Timer },
       { to: "/qa", label: "QA", icon: ClipboardCheck },
       { to: "/portal", label: "Client portal", icon: Compass },
     ],
@@ -104,8 +108,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   useEffect(() => {
+    Promise.resolve(useApex.persist.rehydrate()).then(() => useApex.getState().setHydrated(true));
+  }, []);
+
+  useEffect(() => {
     setOpen(false);
   }, [pathname]);
+
+  if (!s.hydrated) return <main className="p-8" aria-busy="true">Loading workspace…</main>;
 
   return (
     <div className="min-h-dvh bg-bg text-fg">
@@ -147,7 +157,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <div className="lg:pl-60">
         <div className="border-b border-line bg-bg px-4 py-2 text-xs text-muted sm:px-8 print:hidden">
-          Drafts only. Apexline never sends outreach, never auto-bids, never starts vendor work before payment.
+          Local demo workspace · Outreach is saved as drafts. Confirm cleared payment before starting vendor work.
         </div>
         <main className="px-4 py-6 sm:px-8 sm:py-8">{children}</main>
       </div>
@@ -185,3 +195,4 @@ function FooterStrip({ mrr, margin, due }: { mrr: number; margin: number; due: n
     </div>
   );
 }
+

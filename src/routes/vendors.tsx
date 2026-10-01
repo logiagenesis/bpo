@@ -172,3 +172,5 @@ function blankVendor(): Vendor {
     assignedClientIds: [],
   };
 }
+
+

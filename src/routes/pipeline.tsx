@@ -106,3 +106,5 @@ function Closed({ title, stage }: { title: string; stage: "won" | "lost" }) {
     </section>
   );
 }
+
+

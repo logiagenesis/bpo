@@ -49,8 +49,11 @@ export function Field({
 }) {
   return (
     <div className={className}>
-      <Label>{label}</Label>
-      {children}
+      <label className="block">
+        <span className="mb-1.5 block text-xs font-medium uppercase tracking-[0.14em] text-muted">{label}</span>
+        {children}
+      </label>
     </div>
   );
 }
+

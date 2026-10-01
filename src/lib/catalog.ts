@@ -294,3 +294,5 @@ Invoice status:`,
     body: `Rate, hours, tools, NDA, no client contact, 24h response, backup coverage, 7-day notice, test-task score on file.`,
   },
 ];
+
+

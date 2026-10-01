@@ -22,7 +22,7 @@ function AuditPage() {
   const [notes, setNotes] = useState(lead?.notes ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const latest = s.audits.find((a) => a.leadId === leadId) ?? s.audits[0];
+  const latest = s.audits.find((a) => a.leadId === leadId);
 
   async function run() {
     setBusy(true);
@@ -67,7 +67,7 @@ function AuditPage() {
   return (
     <div>
       <PageHeader kicker="Win" title="Client audit">
-        Paste a URL. We read what we can, then write the problem, the offer, and the first drafts. You send them.
+        Add your research notes and a reference URL. AI drafts an assessment from your notes; review its claims before sending.
       </PageHeader>
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
         <form
@@ -151,3 +151,4 @@ function Draft({ title, body }: { title: string; body: string }) {
     </div>
   );
 }
+

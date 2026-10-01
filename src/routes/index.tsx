@@ -3,7 +3,7 @@ import { PageHeader } from "@/components/page-header";
 import { Stat } from "@/components/stat";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { kpis, useApex, vendorMonthly } from "@/lib/store";
+import { clientVendorCost, kpis, useApex } from "@/lib/store";
 import { clientPnl, usd, zar } from "@/lib/money";
 import { STAGE_LABEL } from "@/lib/types";
 
@@ -137,7 +137,7 @@ function MoneyStrip() {
     .filter((c) => c.status !== "churned")
     .map((c) => {
       const v = s.vendors.find((x) => x.id === c.vendorId);
-      return { c, pnl: clientPnl(c, vendorMonthly(v)) };
+      return { c, pnl: clientPnl(c, clientVendorCost(s, c), s.fees) };
     });
   return (
     <section className="mt-10">
@@ -182,3 +182,4 @@ function nextMove(s: ReturnType<typeof useApex.getState>, due: ReturnType<typeof
   if (hot[0]) return `Work ${hot[0].company} (score ${hot[0].score}). ${hot[0].nextAction}`;
   return "Add a lead or paste a job into Outreach.";
 }
+
