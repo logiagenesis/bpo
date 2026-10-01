@@ -1,34 +1,33 @@
-# Apexline
+# BPO MAX / Apexline
 
-Profit-first BPO operating system. Find the client, price the margin, run the work.
+A local BPO operations desk: score leads, price offers, draft proposals, move deals through a pipeline, manage clients and vendors, track tasks and QA, and review client profit.
 
-Apexline is not a course, not a bidding bot, and not a generic CRM. It is the desk an operator uses to:
+## Run locally
 
-1. Score and audit leads
-2. Build offers from vendor cost + target margin
-3. Draft outreach and proposals (you copy, you send)
-4. Run a pipeline through to a paid retainer
-5. Assign vendors, score QA, and watch client P&L
+Requires Node.js 22.12+ and pnpm.
 
-## What it will not do
+    pnpm install
+    pnpm dev
 
-- Auto-apply or mass-bid on freelance marketplaces
-- Send email, LinkedIn, or WhatsApp unattended
-- Start vendor work before setup + month 1 is marked paid
-- Let vendors talk to clients unless you say so
+Open http://127.0.0.1:5173. Validate with `pnpm check` and `pnpm build`.
+The TanStack Start build includes both client assets and a server bundle.
 
-Those behaviours break platform rules and destroy margin. Drafts only.
+## AI setup
 
-## Money path
+Copy .env.example to .env and set XAI_API_KEY and an account-supported XAI_MODEL. Keys remain on the server. Without a key, AI actions report that AI is unavailable; manual workflows and seeded drafts remain usable. Requests use the configured xAI service and may incur usage charges. Review generated claims and pricing before use.
 
-Lead → audit → draft → call → proposal → won (setup unpaid) → vendor assigned → weekly QA → Friday report → profit desk.
+Audits use operator-supplied notes and a reference URL. This version does not fetch arbitrary prospect websites.
 
-Target gross margin 45–60%. Below 40% the quote is blocked with a warning.
+## Data and limits
 
-## Demo workspace
+The initial workspace uses fictional demo leads and clients. Edits persist in browser localStorage on the same origin. Reset from Profit requires confirmation. Clearing browser storage removes saved edits.
 
-The app ships with a seeded Pretoria-operator workspace (Northbridge, Helios, Oak & Pine, Meridian). Data lives in the browser. Reset from Profit.
+This is a single-operator local MVP, with no authentication, shared database, payment processing, or external outreach delivery. The client portal is an internal preview. Invoice flags are operator-entered; payment-before-work is an operating reminder, not payment verification. Offers display margin warnings; planning FX is illustrative, not live.
 
-## Stack
+Keep the development server local. A public deployment needs authentication, server-side tenant storage, AI rate limits, and a deployment adapter.
 
-TanStack Start, React 19, Tailwind v4, Zustand. AI drafts via the server when a key is present.
+## Source
+
+Based on the existing logiagenesis/bpo Apexline source. The workshop notes are reference material; revenue and market claims are not presented as verified evidence.
+
+Built with React 19, TanStack Start/Router, Tailwind CSS 4, and Zustand.

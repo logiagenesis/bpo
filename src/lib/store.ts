@@ -256,6 +256,7 @@ export const useApex = create<ApexState>()(
     }),
     {
       name: "apexline-os-v1",
+      skipHydration: true,
       partialize: (s) => ({
         fxZar: s.fxZar,
         workspace: s.workspace,

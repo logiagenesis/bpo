@@ -22,12 +22,12 @@ function ProfitPage() {
         kicker="Money"
         title="Profit desk"
         action={
-          <Button variant="outline" onClick={() => s.resetDemo()}>
+          <Button variant="outline" onClick={() => { if (window.confirm("Replace all saved workspace data with the demo? This cannot be undone.")) s.resetDemo(); }}>
             Reset demo data
           </Button>
         }
       >
-        If a row does not move margin, keep, cost, or risk — it is a hobby. FX {s.fxZar} ZAR / USD.
+        Track revenue, delivery costs, and margin. Planning FX {s.fxZar} ZAR / USD (illustrative, not a live rate).
       </PageHeader>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="MRR" value={usd(mrr)} hint={zar(mrr, s.fxZar)} />

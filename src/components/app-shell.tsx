@@ -104,8 +104,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   useEffect(() => {
+    Promise.resolve(useApex.persist.rehydrate()).then(() => useApex.getState().setHydrated(true));
+  }, []);
+
+  useEffect(() => {
     setOpen(false);
   }, [pathname]);
+
+  if (!s.hydrated) return <main className="p-8" aria-busy="true">Loading workspace…</main>;
 
   return (
     <div className="min-h-dvh bg-bg text-fg">
@@ -147,7 +153,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <div className="lg:pl-60">
         <div className="border-b border-line bg-bg px-4 py-2 text-xs text-muted sm:px-8 print:hidden">
-          Drafts only. Apexline never sends outreach, never auto-bids, never starts vendor work before payment.
+          Local demo workspace · Outreach is saved as drafts. Confirm cleared payment before starting vendor work.
         </div>
         <main className="px-4 py-6 sm:px-8 sm:py-8">{children}</main>
       </div>

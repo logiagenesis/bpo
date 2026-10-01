@@ -3,7 +3,7 @@ import { useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { LeadForm } from "./leads";
+import { LeadForm } from "./leads.index";
 import { useApex } from "@/lib/store";
 import { STAGE_LABEL } from "@/lib/types";
 
