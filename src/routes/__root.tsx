@@ -22,6 +22,7 @@ export const Route = createRootRoute({
 });
 
 function Root() {
+  if (import.meta.env.VITE_GITHUB_PAGES) return <AppShell><Outlet /></AppShell>;
   return (
     <html lang="en" className="antialiased" suppressHydrationWarning>
       <head>
@@ -36,4 +37,3 @@ function Root() {
     </html>
   );
 }
-

@@ -157,7 +157,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <div className="lg:pl-60">
         <div className="border-b border-line bg-bg px-4 py-2 text-xs text-muted sm:px-8 print:hidden">
-          Local demo workspace · Outreach is saved as drafts. Confirm cleared payment before starting vendor work.
+          {import.meta.env.VITE_GITHUB_PAGES ? 'GitHub Pages workspace · Data stays in this browser. Live AI requires the server edition.' : 'Local demo workspace · Outreach is saved as drafts. Confirm cleared payment before starting vendor work.'}
+          {' · '}<a className="underline" href="https://raw.githubusercontent.com/logiagenesis/bpo/main/MASTER_REPORT.md" target="_blank" rel="noreferrer">Master report</a>
         </div>
         <main className="px-4 py-6 sm:px-8 sm:py-8">{children}</main>
       </div>
@@ -195,4 +196,3 @@ function FooterStrip({ mrr, margin, due }: { mrr: number; margin: number; due: n
     </div>
   );
 }
-
