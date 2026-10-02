@@ -5,7 +5,47 @@
 **Canonical and sole published branch:** `main`  
 **Report file:** `MASTER_REPORT.md`  
 **Build consolidation commit:** `536415c24bda1f17b0966ae3c281404f95d16cd2`  
-**Status:** source and research published to GitHub; runnable local MVP; public application hosting not provisioned.
+**Status (updated 2 October 2026):** source and research published on main; browser workspace deployed and verified on GitHub Pages. Live AI requires the server edition.
+
+## Live deployment update — 2 October 2026
+
+**Current shareable application:** [Open BPO MAX / Apexline](https://logiagenesis.github.io/bpo/)  
+**Branch:** `main` remains the sole published branch.  
+**Deployment commit:** `58a34b920a4f53a0d757bff4d09fb4c8f5153359`  
+**Verified deployment:** [GitHub Actions run 36971668196](https://github.com/logiagenesis/bpo/actions/runs/36971668196), all steps successful.
+
+GitHub Pages was disabled before this update. It is now enabled with the workflow deployment source. The application is published as a browser workspace at the link above. The 1 October report below records the earlier audit and publication state; its statements that public hosting was unprovisioned are historical and superseded by this update. All earlier findings about missing authentication, shared storage, payment reconciliation, and universal payment gates still apply.
+
+### What was built for publication
+
+- Added `vite.pages.config.ts`, `index.html`, and `src/pages-entry.tsx` to produce a static browser application with the correct `/bpo/` asset base.
+- Added hash navigation so routes such as `/bpo/#/cash` and detail pages can be opened and refreshed on GitHub Pages.
+- Kept the existing TanStack Start server build available. The Pages root renders the same application shell and routes without a server document wrapper.
+- Added a Pages-specific AI adapter. GitHub Pages cannot run the existing server functions. AI requests return a clear availability message; server API credentials are never included in the public browser bundle.
+- Added `.github/workflows/pages.yml`. Every push to `main` installs the locked dependencies, checks TypeScript, runs the domain validation, builds the browser edition, and deploys it to Pages. No deployment branch is created.
+- Added a visible workspace banner identifying browser-local storage and the AI boundary, plus a link to this complete report.
+
+### What works on the public application
+
+The dashboard, cash ledger, pricing/profit tools, fee and dated FX settings, lead and client records, pipeline, manual drafts, proposals, delivery tasks, vendors, effort tracking, QA, portal preview, niches and templates use the same application source. Fictional demo data is loaded into the visitor's own browser. Edits and JSON workspace backups operate locally. No visitor's workspace is uploaded to GitHub by using these controls.
+
+Each browser origin has separate storage. Existing localhost data does not automatically appear at the public Pages origin. Export a workspace from the original browser and import it on the public site when needed. Clearing browser data removes local changes. The internal client portal remains a preview; it has no authenticated client access.
+
+Live model generation is not hosted on Pages. The server edition still contains the optional xAI integration and requires a separately hosted server plus a server-side key. This deployment does not add user accounts, a shared database, tenant isolation, website crawling, payment integrations, or automatic outreach.
+
+### Deployment evidence
+
+Local TypeScript checking and the static production build passed. The domain validator passed cash totals/payment movement, effort and hourly costs, fee-aware quotes, fee drag, setup predicate, and workspace import/export assertions. GitHub independently repeated type checking, domain validation and the static build before successfully deploying the artifact.
+
+The public URL was opened in a browser and displayed the seeded Command dashboard with all navigation links. Profit and Cash navigation were exercised on the public site. Reloading Profit retained its hash route and rendered the correct page. These checks establish that the deployed browser application boots, serves its assets, and supports client navigation and refresh. They do not establish live AI service behavior or production multi-user readiness.
+
+### Operations and rollback
+
+Run `pnpm build:pages` to build the static artifact, and use `vite preview --config vite.pages.config.ts` to preview it under `/bpo/`. The ordinary `pnpm build` remains the server build. Publish reviewed changes directly to the existing `main` branch; the Pages workflow handles deployment. If a deployment fails, inspect the Actions job before treating the change as live. To roll back application code, revert the faulty commit on `main`; the same workflow republishes the prior behavior without a second branch.
+
+The publication goal is now met: one canonical branch, one live shareable application URL, and one comprehensive Markdown report. Remaining production work is explicitly recorded below.
+
+---
 
 ## Contents
 
